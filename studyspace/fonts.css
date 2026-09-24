@@ -1,0 +1,27 @@
+/* Study-space fonts — all bundled locally (SIL Open Font License 1.1, see fonts/licenses/).
+   Latin subset only to keep the app small. font-display:swap so text is never invisible. */
+@font-face{font-family:"Inter";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/inter-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"Inter";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/inter-latin-600-normal.woff2") format("woff2");}
+@font-face{font-family:"Inter";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/inter-latin-700-normal.woff2") format("woff2");}
+
+@font-face{font-family:"IBM Plex Sans";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/ibm-plex-sans-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"IBM Plex Sans";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/ibm-plex-sans-latin-600-normal.woff2") format("woff2");}
+@font-face{font-family:"IBM Plex Sans";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/ibm-plex-sans-latin-700-normal.woff2") format("woff2");}
+
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"Atkinson Hyperlegible";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2");}
+
+@font-face{font-family:"Source Serif 4";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/source-serif-4-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"Source Serif 4";font-weight:600;font-style:normal;font-display:swap;src:url("fonts/source-serif-4-latin-600-normal.woff2") format("woff2");}
+@font-face{font-family:"Source Serif 4";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/source-serif-4-latin-700-normal.woff2") format("woff2");}
+
+@font-face{font-family:"JetBrains Mono";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"JetBrains Mono";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/jetbrains-mono-latin-700-normal.woff2") format("woff2");}
+
+/* Gelasio is metric-compatible with Georgia — used where Georgia isn't installed (Android). */
+@font-face{font-family:"Gelasio";font-weight:400;font-style:normal;font-display:swap;src:url("fonts/gelasio-latin-400-normal.woff2") format("woff2");}
+@font-face{font-family:"Gelasio";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/gelasio-latin-700-normal.woff2") format("woff2");}
+
+/* Handwritten heading option for the Chalkboard theme. */
+@font-face{font-family:"Caveat";font-weight:500;font-style:normal;font-display:swap;src:url("fonts/caveat-latin-500-normal.woff2") format("woff2");}
+@font-face{font-family:"Caveat";font-weight:700;font-style:normal;font-display:swap;src:url("fonts/caveat-latin-700-normal.woff2") format("woff2");}

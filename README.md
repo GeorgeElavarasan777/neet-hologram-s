@@ -7,6 +7,29 @@ A single learning space for **NCERT Class 11 & 12** (NEET + CBSE boards) that co
 
 Wired together by a curriculum map so each chapter opens straight to its Listen / Read / Summary / AI **and** its exact holograms.
 
+It all sits inside a calm, distraction-free **study space**:
+
+- **10 black-and-white themes** (Carbon Fiber Black, Rich Black, Ink Wash, Paper White, Slate Monochrome, Blueprint Inverse, Chalkboard, Marble Grey, Graphite Gradient, Duotone Sketch), each one swap of the same CSS variables (`--bg --surface --text --muted --accent --border`). Soft / Standard / High contrast, all verified at WCAG AA 4.5:1 or better (`node tools/check-contrast.js`).
+- **Fonts**: Inter, IBM Plex Sans, Atkinson Hyperlegible, Source Serif 4, JetBrains Mono, Georgia. Size slider 14–22 px, line height 1.4–1.9. All fonts are bundled (SIL OFL).
+- **Wallpapers** generated on the device (gradients, grain, geometric line art, greyscale nature scenes, ink washes, solid tones), or upload your own (max 5 MB, kept locally). You can apply them to the background, sidebar, header or cards, with an overlay slider. A wallpaper that would drop text below 4.5:1 is flagged and the overlay is raised automatically.
+- **Focus Mode** (lesson + notes only), **Pomodoro timer**, **ambient sound** (rain / brown noise / silence, never autoplays), **warm light** filter, thin progress bars. No pop-ups and no badges.
+- **Profiles**: every setting, note and progress bar is saved per profile in one JSON preferences object on the device.
+
+---
+
+## Android app (recommended on phones)
+
+A native Android app in `android/` wraps the same web code in a WebView. Build it with `cd android && gradlew assembleRelease`, which produces `android/app/build/outputs/apk/release/app-release.apk`. You need JDK 17 and the Android SDK (platform 35). The web files at the repo root are copied into the APK at build time, so there is only one copy of the code.
+
+What the app adds on top of the browser version:
+
+- **Fully offline**: pdf.js, JSZip and the study-console fonts are served from the APK instead of CDNs.
+- **Listen works on Android**: speech is routed to Android's text-to-speech engine, with word-by-word highlighting. Offline voices are preferred.
+- **Refresh rate control**: *Adaptive* (the screen's top rate, e.g. 120 Hz, while you touch or scroll, then 60 Hz while you read), fixed 60/90/120 Hz, *Max* or *System*.
+- **Focus Mode** hides the status and navigation bars and keeps the screen awake. The system bars follow the theme colours.
+- Gentle vibration when a Pomodoro phase ends, notes export through the system file picker, a wallpaper picker, and the back gesture closing panels in order.
+- Frees cached images on low memory and recovers by itself if the WebView renderer crashes.
+
 ---
 
 ## Run it — two ways
@@ -46,6 +69,15 @@ HoloStudy-LMS/
 ├─ engines/
 │  ├─ holograms/               the 3-D hologram engine (index.html + holo.js + vendor/three.min.js)
 │  └─ study/                   the study console (study.html + holostudy-demos.js)
+├─ studyspace/                 themes, fonts, wallpapers, focus mode, timer, sound, notes
+│  ├─ themes.js                the 10 themes as token sets + WCAG contrast maths
+│  ├─ wallpapers.js            on-device wallpaper + theme-art generators
+│  ├─ studyspace.js / .css     preferences, settings drawer, focus mode, Pomodoro, ambient sound
+│  ├─ native-speech.js         Android app only: speechSynthesis → Android text-to-speech
+│  └─ fonts/                   bundled OFL fonts + licences
+├─ vendor/                     offline copies of pdf.js, JSZip, Google Fonts CSS (used by the app)
+├─ tools/check-contrast.js     verifies all themes x contrast modes meet WCAG AA
+├─ android/                    native Android app (WebView shell, refresh rate, TTS, focus mode)
 └─ assets/icons/               app icons (svg + png, normal + maskable)
 ```
 
@@ -60,4 +92,5 @@ HoloStudy-LMS/
 ## Notes
 - Everything runs **on-device** — nothing is uploaded. Progress is saved in the browser (localStorage/IndexedDB).
 - NCERT text is bundled for personal study; get permission before public distribution.
-- Study console loads pdf.js/DOCX reader from a CDN on first use; the hologram room bundles Three.js and is fully offline.
+- In a browser the study console loads pdf.js/DOCX reader from a CDN on first use. The Android app bundles them, and the hologram room bundles Three.js, so both are fully offline.
+- Credits and licences for every outside asset are listed on the app's **About & credits** page.

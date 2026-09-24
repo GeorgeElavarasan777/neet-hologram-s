@@ -3,285 +3,249 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#050a14">
-<meta name="color-scheme" content="dark">
-<meta name="description" content="HoloStudy LMS — NCERT Class 11 & 12 Physics, Chemistry & Biology with 124 exact 3D holograms, voice-note listening, reading, summaries and an AI study agent. Works offline, installs on Android.">
-<title>HoloStudy LMS — 3D holographic learning for NEET & boards</title>
+<meta name="theme-color" content="#101114">
+<meta name="color-scheme" content="dark light">
+<meta name="description" content="HoloStudy LMS — a calm study space for NCERT Class 11 & 12 Physics, Chemistry & Biology with 124 exact 3D holograms, voice-note listening, reading, summaries and an AI study agent. Works offline.">
+<title>HoloStudy LMS — calm study space for NEET & boards</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+<link rel="stylesheet" href="studyspace/fonts.css">
+<link rel="stylesheet" href="studyspace/studyspace.css">
+<script src="studyspace/themes.js"></script>
+<script src="studyspace/wallpapers.js"></script>
+<script src="studyspace/studyspace.js"></script>
 <style>
-  :root{
-    --bg:#050a14; --bg2:#0a1120; --card:#101a2e; --card2:#16233d; --line:#22314f;
-    --text:#e8eef7; --muted:#9fb0c9; --dim:#6b7c99;
-    --cyan:#22d3ee; --violet:#a78bfa; --green:#34d399; --amber:#fbbf24;
-    --phys:#22d3ee; --chem:#a78bfa; --bio:#34d399;
-    --accent:var(--cyan);
-    --radius:16px; --shadow:0 8px 30px rgba(0,0,0,.45);
-    --sbw:236px;
-  }
+  /* Hub layout. Colours, fonts and sizes all come from the study-space tokens (studyspace.css):
+     neutral greys plus at most two accents, soft borders, no glows, no motion beyond short fades. */
+  :root{ --sbw:252px; }
   *{box-sizing:border-box;}
   [hidden]{display:none !important;}
   html,body{margin:0;padding:0;}
-  body{
-    background:
-      radial-gradient(1200px 700px at 80% -10%, rgba(34,211,238,.10), transparent 60%),
-      radial-gradient(1000px 600px at -10% 20%, rgba(167,139,250,.10), transparent 55%),
-      var(--bg);
-    color:var(--text); font:15px/1.55 system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-    min-height:100vh; -webkit-text-size-adjust:100%; overflow-x:hidden;
-  }
-  a{color:inherit;text-decoration:none;}
+  body{background:transparent;color:var(--text);font-family:var(--font-body);font-size:1rem;line-height:var(--lh);
+    min-height:100vh;-webkit-text-size-adjust:100%;overflow-x:hidden;-webkit-font-smoothing:antialiased;}
+  h1,h2,h3,h4{font-family:var(--font-head);}
+  html[data-handwritten="1"] :is(h1,h2,h3){font-weight:700;letter-spacing:.01em;}
+  a{color:inherit;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px;}
   button{font:inherit;color:inherit;cursor:pointer;border:0;background:transparent;}
-  ::selection{background:rgba(34,211,238,.3);}
+  ::selection{background:color-mix(in srgb,var(--accent) 30%,transparent);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .mono-ic,.emoji,.glyph,.ic{filter:grayscale(1);}
   .wrap{display:flex;min-height:100vh;}
 
-  /* ---------------- sidebar (desktop) ---------------- */
-  #side{
-    width:var(--sbw);flex:none;position:sticky;top:0;height:100vh;
-    background:linear-gradient(180deg,var(--bg2),rgba(10,17,32,.6));
-    border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;
-    padding:18px 12px;z-index:20;
-  }
-  .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;}
-  .brand .logo{width:38px;height:38px;flex:none;border-radius:11px;
-    background:conic-gradient(from 210deg,var(--cyan),var(--violet),var(--green),var(--cyan));
-    display:grid;place-items:center;font-weight:800;color:#04121c;font-size:20px;
-    box-shadow:0 0 18px rgba(34,211,238,.4);position:relative;overflow:hidden;}
-  .brand .logo::after{content:"";position:absolute;inset:2px;border-radius:9px;background:rgba(5,10,20,.55);}
-  .brand .logo span{position:relative;z-index:1;background:linear-gradient(180deg,#fff,#8ad);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .brand b{font-size:16px;font-weight:800;letter-spacing:.3px;line-height:1.1;}
-  .brand b small{display:block;font-size:10px;font-weight:600;color:var(--muted);letter-spacing:1.5px;}
-  .navbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;
-    padding:11px 12px;border-radius:11px;color:var(--muted);font-weight:600;font-size:14px;transition:.15s;}
-  .navbtn .ic{width:22px;text-align:center;font-size:17px;flex:none;}
-  .navbtn:hover{background:rgba(255,255,255,.05);color:var(--text);}
-  .navbtn.on{background:linear-gradient(90deg,rgba(34,211,238,.16),transparent);color:#fff;box-shadow:inset 2px 0 0 var(--accent);}
-  .navbtn.sub-phys.on{--accent:var(--phys);box-shadow:inset 2px 0 0 var(--phys);background:linear-gradient(90deg,rgba(34,211,238,.16),transparent);}
-  .navbtn.sub-chem.on{--accent:var(--chem);box-shadow:inset 2px 0 0 var(--chem);background:linear-gradient(90deg,rgba(167,139,250,.16),transparent);}
-  .navbtn.sub-bio.on{--accent:var(--bio);box-shadow:inset 2px 0 0 var(--bio);background:linear-gradient(90deg,rgba(52,211,153,.16),transparent);}
-  .sidefoot{margin-top:auto;padding:10px 8px 2px;}
-  #installBtn{display:none;width:100%;justify-content:center;gap:8px;padding:11px;border-radius:11px;
-    background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04121c;font-weight:800;font-size:13.5px;
-    box-shadow:0 4px 16px rgba(34,211,238,.3);}
+  /* ---------------- sidebar ---------------- */
+  #side{width:var(--sbw);flex:none;position:sticky;top:0;height:100vh;height:100dvh;overflow-y:auto;overscroll-behavior:contain;
+    background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;gap:2px;padding:18px 12px;z-index:20;scrollbar-width:thin;}
+  html[data-glass="1"] #side{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);}
+  .brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px;}
+  .brand .logo{width:36px;height:36px;flex:none;border-radius:10px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font:700 1.05rem/1 var(--font-head);}
+  .brand b{font:700 .98rem/1.15 var(--font-head);}
+  .brand b small{display:block;font:600 .62rem/1.3 var(--font-body);color:var(--muted);letter-spacing:.12em;margin-top:2px;}
+  .navbtn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;min-height:44px;padding:10px 12px;border-radius:10px;
+    color:var(--muted);font-weight:600;font-size:.88rem;transition:background var(--dur),color var(--dur);}
+  .navbtn .ic{width:22px;text-align:center;font-size:1.02rem;flex:none;}
+  .navbtn:hover{background:var(--surface-2);color:var(--text);}
+  .navbtn.on{background:var(--surface-2);color:var(--text);box-shadow:inset 2px 0 0 var(--accent);}
+  .sidesec{font:700 .64rem/1 var(--font-body);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:18px 8px 8px;}
+  #sideTools{display:flex;flex-direction:column;gap:8px;padding:0 2px;}
+  #sideTools .ss-btn{width:100%;}
+  .sidefoot{margin-top:auto;padding:14px 6px 2px;}
+  #installBtn{display:none;width:100%;}
   #installBtn.show{display:flex;}
-  .sidefoot small{display:block;color:var(--dim);font-size:11px;text-align:center;margin-top:10px;line-height:1.5;}
+  .sidefoot small{display:block;color:var(--muted);font-size:.7rem;text-align:center;margin-top:10px;line-height:1.5;}
 
   /* ---------------- main ---------------- */
-  main{flex:1;min-width:0;padding:26px clamp(16px,4vw,44px) 90px;max-width:1240px;margin:0 auto;width:100%;}
-  .topbar{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
-  .topbar h1{font-size:clamp(20px,3.2vw,30px);margin:0;font-weight:800;letter-spacing:.2px;line-height:1.15;}
-  .topbar h1 .accentword{background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .topbar p{margin:4px 0 0;color:var(--muted);font-size:13.5px;}
-  .searchpill{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--card);
-    border:1px solid var(--line);border-radius:24px;padding:8px 14px;min-width:min(320px,42vw);max-width:420px;flex:1;}
-  .searchpill input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);outline:none;font-size:14px;}
-  .searchpill .ic{color:var(--dim);}
-  #searchResults{position:relative;}
+  main{flex:1;min-width:0;padding:30px clamp(16px,4vw,48px) 110px;max-width:1180px;margin:0 auto;width:100%;}
+  .topbar{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+  .topbar h1{font-size:clamp(1.3rem,2.6vw,1.75rem);margin:0;font-weight:700;letter-spacing:-.01em;line-height:1.2;}
+  .topbar p{margin:4px 0 0;color:var(--muted);font-size:.88rem;}
+  .searchpill{margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;padding:6px 12px;min-height:44px;min-width:min(300px,40vw);max-width:420px;flex:1;}
+  .searchpill input{flex:1;min-width:0;border:0;background:transparent;color:var(--text);outline:none;font:inherit;font-size:.9rem;}
+  .searchpill input::placeholder{color:var(--muted);}
+  .searchpill .ic{color:var(--muted);}
+  .iconbtn{width:44px;height:44px;flex:none;border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);display:grid;place-items:center;font-size:1.1rem;}
+  .iconbtn:hover{border-color:var(--accent);}
 
-  /* hero dashboard */
-  .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-bottom:24px;}
-  .panel{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
-    border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
-  .hero .intro h2{margin:0 0 8px;font-size:19px;}
-  .hero .intro p{margin:0 0 14px;color:var(--muted);font-size:14px;}
+  .hero{display:grid;grid-template-columns:1.2fr .8fr;gap:18px;margin-bottom:8px;}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;}
+  html[data-glass="1"] :is(.panel,.subjcard,.chapcard,.holcard){box-shadow:inset 0 1px 0 rgba(255,255,255,.06);}
+  .intro h2{margin:0 0 8px;font-size:1.12rem;}
+  .intro p{margin:0 0 16px;color:var(--muted);font-size:.92rem;max-width:62ch;}
   .statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
-  .stat{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px 10px;text-align:center;}
-  .stat b{display:block;font-size:22px;font-weight:800;line-height:1;background:linear-gradient(90deg,var(--cyan),var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .stat small{display:block;color:var(--muted);font-size:11px;margin-top:5px;letter-spacing:.3px;}
-  .progwrap{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;}
-  .ring{--p:0;width:150px;height:150px;border-radius:50%;display:grid;place-items:center;flex:none;
-    background:conic-gradient(var(--cyan) calc(var(--p)*1%),rgba(255,255,255,.06) 0);}
-  .ring .inner{width:120px;height:120px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;flex-direction:column;text-align:center;}
-  .ring .inner b{font-size:30px;font-weight:800;}
-  .ring .inner small{color:var(--muted);font-size:11px;}
-  .progwrap .cta{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 15px;border-radius:11px;font-weight:700;font-size:13.5px;
-    background:var(--card2);border:1px solid var(--line);transition:.15s;}
-  .btn:hover{border-color:var(--accent);color:#fff;transform:translateY(-1px);}
-  .btn.primary{background:linear-gradient(90deg,var(--cyan),var(--violet));color:#04121c;border:0;}
-  .btn.primary:hover{filter:brightness(1.08);}
-  .btn.ghost{background:transparent;}
+  .stat{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 8px;text-align:center;}
+  .stat b{display:block;font:700 1.25rem/1 var(--font-head);color:var(--text);font-variant-numeric:tabular-nums;}
+  .stat small{display:block;color:var(--muted);font-size:.66rem;margin-top:6px;letter-spacing:.08em;}
+  .progpanel h2{margin:0 0 4px;font-size:1rem;}
+  .progpanel .sub{color:var(--muted);font-size:.8rem;margin:0 0 14px;}
+  .progrow{display:grid;grid-template-columns:86px 1fr 40px;align-items:center;gap:10px;margin:0 0 10px;font-size:.8rem;color:var(--muted);}
+  .progrow b{color:var(--text);font-weight:600;}
+  .progrow span:last-child{text-align:right;font-variant-numeric:tabular-nums;}
+  .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:10px;font-weight:600;font-size:.86rem;
+    background:var(--surface-2);border:1px solid var(--border);color:var(--text);transition:border-color var(--dur);}
+  .btn:hover{border-color:var(--accent);}
+  .btn.primary{background:var(--accent);color:var(--on-accent);border-color:transparent;}
 
-  .section-title{display:flex;align-items:center;gap:10px;margin:26px 0 14px;}
-  .section-title h2{margin:0;font-size:17px;font-weight:800;}
-  .section-title .line{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);}
-  .section-title small{color:var(--muted);font-size:12.5px;}
+  .section-title{display:flex;align-items:center;gap:12px;margin:34px 0 14px;}
+  .section-title h2{margin:0;font-size:1.02rem;font-weight:700;}
+  .section-title .line{flex:1;height:1px;background:var(--border);}
+  html[data-divider="brush"] .section-title .line{height:9px;opacity:.45;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 9' preserveAspectRatio='none'%3E%3Cpath d='M2 5.2C70 2.4 160 6.4 300 4.1S510 2.2 598 4.6L597 6.3C505 7.8 390 5.4 300 6.6S95 8.1 3 6.9Z' fill='%23EDEDEA'/%3E%3C/svg%3E") center/100% 100% no-repeat;}
+  .section-title small{color:var(--muted);font-size:.78rem;}
 
-  /* subject cards */
-  .subjects{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
-  .subjcard{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--card),var(--bg2));
-    border:1px solid var(--line);border-radius:var(--radius);padding:20px;cursor:pointer;transition:.18s;}
-  .subjcard:hover{transform:translateY(-3px);border-color:var(--sc);box-shadow:0 14px 34px rgba(0,0,0,.5);}
-  .subjcard .glow{position:absolute;inset:-40% 40% auto -10%;height:180px;background:radial-gradient(circle,var(--sc),transparent 70%);opacity:.16;pointer-events:none;}
-  .subjcard .emoji{font-size:34px;}
-  .subjcard h3{margin:10px 0 4px;font-size:20px;font-weight:800;}
-  .subjcard .meta{color:var(--muted);font-size:13px;}
-  .subjcard .bars{display:flex;gap:6px;margin-top:14px;}
-  .subjcard .bars .b{flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden;}
-  .subjcard .bars .b i{display:block;height:100%;width:0;background:var(--sc);border-radius:3px;transition:width .6s;}
-  .subjcard .holobadge{display:inline-flex;align-items:center;gap:5px;margin-top:14px;font-size:12px;font-weight:700;
-    color:var(--sc);background:color-mix(in srgb,var(--sc) 15%,transparent);border:1px solid color-mix(in srgb,var(--sc) 40%,transparent);
-    padding:4px 10px;border-radius:20px;}
+  .subjects{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  .subjcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;cursor:pointer;transition:border-color var(--dur);text-align:left;width:100%;}
+  .subjcard:hover{border-color:var(--accent);}
+  .subjcard .emoji{font-size:1.5rem;}
+  .subjcard h3{margin:10px 0 2px;font-size:1.12rem;font-weight:700;}
+  .subjcard .meta{color:var(--muted);font-size:.82rem;}
+  .subjcard .ss-bar{margin-top:14px;}
+  .subjcard .holobadge{display:block;margin-top:10px;font-size:.76rem;color:var(--muted);}
 
-  /* class toggle */
-  .classtoggle{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:4px;gap:4px;}
-  .classtoggle button{padding:7px 18px;border-radius:18px;font-weight:700;font-size:13px;color:var(--muted);}
-  .classtoggle button.on{background:var(--accent);color:#04121c;}
+  .classtoggle{display:inline-flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:3px;gap:3px;}
+  .classtoggle button{min-height:38px;padding:6px 16px;border-radius:8px;font-weight:600;font-size:.84rem;color:var(--muted);}
+  .classtoggle button.on{background:var(--accent);color:var(--on-accent);}
 
-  /* chapter grid */
-  .chapgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;}
-  .chapcard{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
-    border-radius:14px;padding:15px 16px;cursor:pointer;transition:.16s;position:relative;display:flex;flex-direction:column;gap:10px;min-height:130px;}
-  .chapcard:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 26px rgba(0,0,0,.45);}
-  .chapcard .chnum{font-size:11px;font-weight:800;letter-spacing:1px;color:var(--accent);text-transform:uppercase;}
-  .chapcard h4{margin:0;font-size:15.5px;font-weight:700;line-height:1.3;}
-  .chapcard .cmeta{display:flex;flex-wrap:wrap;gap:5px 12px;color:var(--muted);font-size:11.5px;margin-top:auto;}
-  .chapcard .cmeta span{display:inline-flex;align-items:center;gap:4px;}
-  .chapcard .holopill{position:absolute;top:13px;right:13px;font-size:10.5px;font-weight:800;
-    color:#04121c;background:var(--accent);border-radius:20px;padding:3px 9px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 8px rgba(0,0,0,.4);}
-  .chapcard.done{border-color:color-mix(in srgb,var(--green) 45%,var(--line));}
-  .chapcard .doneflag{color:var(--green);font-size:11px;font-weight:700;display:flex;align-items:center;gap:4px;}
-  .chapcard .prog{height:4px;border-radius:2px;background:rgba(255,255,255,.07);overflow:hidden;}
-  .chapcard .prog i{display:block;height:100%;background:var(--accent);width:0;border-radius:2px;}
+  .chapgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;}
+  .chapcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;cursor:pointer;position:relative;
+    display:flex;flex-direction:column;gap:10px;min-height:128px;transition:border-color var(--dur);text-align:left;width:100%;}
+  .chapcard:hover{border-color:var(--accent);}
+  .chapcard .chnum{font-size:.68rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;padding-right:64px;}
+  .chapcard h4{margin:0;font-size:.98rem;font-weight:600;line-height:1.35;}
+  .chapcard .cmeta{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--muted);font-size:.74rem;margin-top:auto;}
+  .chapcard .holopill{position:absolute;top:13px;right:13px;font-size:.68rem;font-weight:600;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:2px 7px;}
+  .chapcard .doneflag{color:var(--text);font-weight:600;}
 
-  /* holograms browser */
   .filterbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
-  .chip{padding:7px 14px;border-radius:20px;font-size:13px;font-weight:600;background:var(--card);border:1px solid var(--line);color:var(--muted);transition:.15s;}
-  .chip:hover{color:#fff;}
-  .chip.on{background:var(--accent);color:#04121c;border-color:transparent;}
-  .holgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:13px;}
-  .holcard{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:13px;
-    padding:14px;cursor:pointer;transition:.16s;position:relative;overflow:hidden;}
-  .holcard:hover{transform:translateY(-2px);border-color:var(--sc);box-shadow:0 10px 24px rgba(0,0,0,.45);}
-  .holcard .thumb{height:80px;border-radius:9px;margin-bottom:11px;position:relative;overflow:hidden;
-    background:radial-gradient(ellipse at 50% 120%,color-mix(in srgb,var(--sc) 35%,transparent),transparent 70%),var(--bg);
-    border:1px solid var(--line);display:grid;place-items:center;}
-  .holcard .thumb .glyph{font-size:30px;filter:drop-shadow(0 0 10px var(--sc));opacity:.9;}
-  .holcard .thumb .scan{position:absolute;inset:0;opacity:.25;background:repeating-linear-gradient(0deg,color-mix(in srgb,var(--sc) 50%,transparent) 0 1px,transparent 1px 5px);}
-  .holcard .fig{font-size:11px;font-weight:800;color:var(--sc);letter-spacing:.5px;}
-  .holcard h4{margin:3px 0 5px;font-size:14px;line-height:1.3;}
-  .holcard .sv{color:var(--muted);font-size:11.5px;line-height:1.35;}
-  .holcard .lb{display:inline-block;margin-top:8px;font-size:10.5px;color:var(--dim);}
+  .chip{min-height:38px;padding:6px 14px;border-radius:10px;font-size:.82rem;font-weight:600;background:var(--surface);border:1px solid var(--border);color:var(--muted);}
+  .chip:hover{color:var(--text);}
+  .chip.on{background:var(--accent);color:var(--on-accent);border-color:transparent;}
+  .holgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+  .holcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;cursor:pointer;transition:border-color var(--dur);text-align:left;width:100%;}
+  .holcard:hover{border-color:var(--accent);}
+  .holcard .thumb{height:72px;border-radius:8px;margin-bottom:10px;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;}
+  .holcard .glyph{font-size:1.5rem;opacity:.75;}
+  .holcard .fig{font-size:.68rem;font-weight:700;color:var(--muted);letter-spacing:.04em;}
+  .holcard h4{margin:4px 0 5px;font-size:.9rem;line-height:1.35;}
+  .holcard .sv{color:var(--muted);font-size:.76rem;line-height:1.4;}
+  .holcard .lb{display:inline-block;margin-top:8px;font-size:.7rem;color:var(--muted);}
 
-  /* chapter detail drawer */
-  #scrim{position:fixed;inset:0;background:rgba(2,6,14,.72);backdrop-filter:blur(4px);z-index:60;opacity:0;transition:.2s;}
+  /* chapter drawer */
+  #scrim{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;opacity:0;transition:opacity var(--dur);}
   #scrim.show{opacity:1;}
-  #drawer{position:fixed;z-index:61;top:0;right:0;height:100vh;width:min(460px,100vw);
-    background:linear-gradient(180deg,var(--bg2),var(--bg));border-left:1px solid var(--line);
-    box-shadow:-12px 0 40px rgba(0,0,0,.55);transform:translateX(100%);transition:transform .28s cubic-bezier(.2,.8,.2,1);
-    display:flex;flex-direction:column;overflow:hidden;}
+  #drawer{position:fixed;z-index:61;top:0;right:0;height:100vh;height:100dvh;width:min(460px,100vw);background:var(--bg);background-image:var(--bg-image);
+    border-left:1px solid var(--border);transform:translateX(100%);transition:transform 240ms var(--ease);display:flex;flex-direction:column;overflow:hidden;}
   #drawer.show{transform:none;}
-  .drawhead{padding:20px 22px 16px;border-bottom:1px solid var(--line);position:relative;flex:none;}
-  .drawhead .close{position:absolute;top:16px;right:16px;width:34px;height:34px;border-radius:50%;background:var(--card2);font-size:18px;}
-  .drawhead .close:hover{background:var(--card);}
-  .drawhead .eyebrow{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent);}
-  .drawhead h2{margin:6px 0 10px;font-size:22px;line-height:1.2;padding-right:36px;}
-  .drawhead .cmeta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:12.5px;}
-  .drawbody{flex:1;overflow:auto;padding:18px 22px 28px;}
-  .drawbody h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin:22px 0 10px;}
+  .drawhead{padding:20px 22px 16px;border-bottom:1px solid var(--border);position:relative;flex:none;}
+  .drawhead .close{position:absolute;top:14px;right:14px;width:44px;height:44px;border-radius:10px;border:1px solid var(--border);font-size:1.2rem;}
+  .drawhead .eyebrow{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-right:52px;}
+  .drawhead h2{margin:6px 0 10px;font-size:1.3rem;line-height:1.25;padding-right:44px;}
+  .drawhead .cmeta{display:flex;flex-wrap:wrap;gap:6px 14px;color:var(--muted);font-size:.78rem;}
+  .drawbody{flex:1;overflow:auto;padding:18px 22px 28px;overscroll-behavior:contain;}
+  .drawbody h3{font:700 .7rem/1.2 var(--font-body);text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:24px 0 10px;}
   .drawbody h3:first-child{margin-top:0;}
   .actgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-  .actbtn{display:flex;align-items:center;gap:11px;padding:14px;border-radius:12px;background:var(--card);border:1px solid var(--line);text-align:left;transition:.15s;}
-  .actbtn:hover{border-color:var(--accent);transform:translateY(-1px);background:var(--card2);}
-  .actbtn .ic{font-size:22px;flex:none;}
-  .actbtn b{display:block;font-size:14px;}
-  .actbtn small{display:block;color:var(--muted);font-size:11px;margin-top:1px;}
+  .actbtn{display:flex;align-items:center;gap:11px;min-height:64px;padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--border);text-align:left;transition:border-color var(--dur);}
+  .actbtn:hover{border-color:var(--accent);}
+  .actbtn .ic{font-size:1.25rem;flex:none;}
+  .actbtn b{display:block;font-size:.9rem;}
+  .actbtn small{display:block;color:var(--muted);font-size:.72rem;margin-top:1px;}
+  .actbtn.wide{grid-column:1/-1;}
   .holchiplist{display:flex;flex-direction:column;gap:8px;}
-  .holchip{display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:11px;background:var(--card);border:1px solid var(--line);cursor:pointer;transition:.15s;text-align:left;width:100%;}
-  .holchip:hover{border-color:var(--sc);transform:translateX(2px);background:var(--card2);}
-  .holchip .dot{width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;font-size:16px;
-    background:radial-gradient(circle at 50% 120%,color-mix(in srgb,var(--sc) 45%,transparent),transparent),var(--bg);border:1px solid var(--line);
-    filter:drop-shadow(0 0 6px var(--sc));}
+  .holchip{display:flex;align-items:center;gap:12px;min-height:56px;padding:10px 12px;border-radius:11px;background:var(--surface);border:1px solid var(--border);cursor:pointer;transition:border-color var(--dur);text-align:left;width:100%;}
+  .holchip:hover{border-color:var(--accent);}
+  .holchip .dot{width:34px;height:34px;flex:none;border-radius:9px;display:grid;place-items:center;font-size:1rem;background:var(--surface-2);border:1px solid var(--border);}
   .holchip .tx{flex:1;min-width:0;}
-  .holchip .tx b{display:block;font-size:13.5px;line-height:1.25;}
-  .holchip .tx small{display:block;color:var(--muted);font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  .holchip .go{color:var(--sc);font-size:18px;flex:none;}
-  .nohol{color:var(--dim);font-size:13px;font-style:italic;padding:8px 0;}
+  .holchip .tx b{display:block;font-size:.86rem;line-height:1.3;}
+  .holchip .tx small{display:block;color:var(--muted);font-size:.72rem;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .holchip .go{color:var(--muted);font-size:1.1rem;flex:none;}
+  .nohol{color:var(--muted);font-size:.84rem;padding:8px 0;}
 
-  /* fullscreen engine viewer */
-  #viewer{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;transform:translateY(100%);transition:transform .3s cubic-bezier(.2,.8,.2,1);}
-  #viewer.show{transform:none;}
-  .vbar{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--line);flex:none;}
-  .vbar button{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border-radius:10px;background:var(--card2);font-weight:700;font-size:13.5px;}
-  .vbar button:hover{background:var(--card);}
-  .vbar .vtitle{font-weight:700;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* lesson viewer */
+  #viewer{position:fixed;inset:0;z-index:90;background:var(--bg);background-image:var(--bg-image);display:flex;flex-direction:column;opacity:0;transition:opacity var(--dur);}
+  #viewer.show{opacity:1;}
+  .vbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-bottom:1px solid var(--border);flex:none;min-height:56px;}
+  .vbar button{display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:6px 12px;border-radius:10px;background:var(--surface-2);border:1px solid var(--border);font-weight:600;font-size:.8rem;white-space:nowrap;}
+  .vbar button:hover{border-color:var(--accent);}
+  .vbar button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
+  .vbar .vtitle{font-weight:600;font-size:.86rem;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .vbar .vtitle small{color:var(--muted);font-weight:500;}
   #viewer iframe{flex:1;width:100%;border:0;background:var(--bg);}
-  .vspinner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:12px;}
-  .vspinner .orb{width:44px;height:44px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--cyan);animation:spin 1s linear infinite;}
-  @keyframes spin{to{transform:rotate(360deg);}}
+  .vspinner{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--muted);font-size:.86rem;pointer-events:none;}
 
-  /* bottom nav (mobile) */
-  #botnav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(8,14,26,.94);
-    backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));}
-  #botnav .row{display:flex;justify-content:space-around;max-width:560px;margin:0 auto;}
-  #botnav button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 10px;color:var(--muted);font-size:10.5px;font-weight:600;flex:1;}
-  #botnav button .ic{font-size:20px;}
-  #botnav button.on{color:var(--cyan);}
+  /* bottom nav (phones) */
+  #botnav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bg);background-image:var(--bg-image);border-top:1px solid var(--border);
+    padding:4px 2px calc(4px + env(safe-area-inset-bottom));}
+  #botnav .row{display:flex;justify-content:space-around;max-width:600px;margin:0 auto;}
+  #botnav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:52px;padding:4px 2px;color:var(--muted);font-size:.64rem;font-weight:600;flex:1;border-top:2px solid transparent;}
+  #botnav button .ic{font-size:1.15rem;}
+  #botnav button.on{color:var(--text);border-top-color:var(--accent);}
 
-  .about p{color:var(--muted);font-size:14px;max-width:70ch;}
-  .about ul{color:var(--muted);font-size:14px;max-width:70ch;line-height:1.7;}
+  .about p,.about li{color:var(--muted);font-size:.92rem;max-width:72ch;}
+  .about ul{padding-left:1.2em;line-height:var(--lh);}
   .about b{color:var(--text);}
-  .kbd{font-family:ui-monospace,Consolas,monospace;background:var(--card2);border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:12px;color:var(--cyan);}
-  .empty{color:var(--dim);padding:40px 0;text-align:center;}
+  .about h3{font:700 .72rem/1.2 var(--font-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px;}
+  .about table{border-collapse:collapse;width:100%;font-size:.84rem;margin:4px 0 8px;}
+  .about td,.about th{text-align:left;padding:8px 10px 8px 0;border-bottom:1px solid var(--border);vertical-align:top;color:var(--muted);}
+  .about th{color:var(--text);font-weight:600;}
+  .kbd{font-family:var(--font-mono);background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:.78rem;color:var(--text);}
+  .empty{color:var(--muted);padding:40px 0;text-align:center;font-size:.9rem;}
 
-  /* toast */
-  #toast{position:fixed;left:50%;bottom:80px;transform:translate(-50%,10px);background:#e8eef7;color:#0a1120;
-    padding:10px 18px;border-radius:22px;font-size:13.5px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.5);
-    opacity:0;transition:.25s;z-index:120;pointer-events:none;max-width:86vw;text-align:center;}
-  #toast.show{opacity:1;transform:translate(-50%,0);}
+  #toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--surface-2);color:var(--text);border:1px solid var(--border);
+    padding:9px 16px;border-radius:10px;font-size:.84rem;font-weight:500;opacity:0;transition:opacity var(--dur);z-index:120;pointer-events:none;max-width:86vw;text-align:center;backdrop-filter:blur(8px);}
+  #toast.show{opacity:1;}
 
   /* ---------------- responsive ---------------- */
-  @media (max-width:1080px){ :root{--sbw:200px;} .hero{grid-template-columns:1fr;} }
+  @media (max-width:1080px){ :root{--sbw:220px;} .hero{grid-template-columns:1fr;} }
   @media (max-width:760px){
     #side{display:none;}
-    main{padding:16px 15px 96px;}
+    main{padding:16px 16px 100px;}
     #botnav{display:block;}
     .topbar{flex-wrap:wrap;}
-    .searchpill{margin-left:0;order:3;width:100%;max-width:none;min-width:0;}
+    .topbar > div:first-child{flex:1 1 0;min-width:0;}
+    .searchpill{margin-left:0;order:3;flex:1 1 100%;width:100%;max-width:none;min-width:0;}
     .subjects{grid-template-columns:1fr;}
     .statgrid{grid-template-columns:repeat(2,1fr);}
-    .actgrid{grid-template-columns:1fr 1fr;}
     #drawer{width:100vw;}
-    .mobile-brand{display:flex !important;}
+    .vbar .hide-sm{display:none;}
   }
   @media (max-width:400px){ .actgrid{grid-template-columns:1fr;} }
-  @media (prefers-reduced-motion:reduce){ *{transition:none !important;animation:none !important;} }
 </style>
 </head>
 <body>
 <div class="wrap">
   <!-- ============ SIDEBAR ============ -->
-  <aside id="side">
+  <aside id="side" aria-label="Navigation and study tools">
     <div class="brand">
-      <div class="logo"><span>H</span></div>
-      <b>HoloStudy<small>LMS · NEET & BOARDS</small></b>
+      <div class="logo" aria-hidden="true">H</div>
+      <b>HoloStudy<small>LMS · NEET &amp; BOARDS</small></b>
     </div>
     <button class="navbtn on" data-view="dashboard"><span class="ic">▚</span> Dashboard</button>
-    <button class="navbtn sub-phys" data-view="subject" data-subject="physics"><span class="ic" style="color:var(--phys)">⚡</span> Physics</button>
-    <button class="navbtn sub-chem" data-view="subject" data-subject="chemistry"><span class="ic" style="color:var(--chem)">🧪</span> Chemistry</button>
-    <button class="navbtn sub-bio" data-view="subject" data-subject="biology"><span class="ic" style="color:var(--bio)">🧬</span> Biology</button>
+    <button class="navbtn" data-view="subject" data-subject="physics"><span class="ic">⚡</span> Physics</button>
+    <button class="navbtn" data-view="subject" data-subject="chemistry"><span class="ic">🧪</span> Chemistry</button>
+    <button class="navbtn" data-view="subject" data-subject="biology"><span class="ic">🧬</span> Biology</button>
     <button class="navbtn" data-view="holograms"><span class="ic">🔮</span> Hologram Room</button>
-    <button class="navbtn" data-view="about"><span class="ic">✦</span> About</button>
+    <button class="navbtn" data-view="about"><span class="ic">✦</span> About &amp; credits</button>
+    <div class="sidesec">Study tools</div>
+    <div id="sideTools"></div>
     <div class="sidefoot">
-      <button id="installBtn"><span>⤓</span> Install app</button>
-      <small>Works offline · 124 holograms<br>Made for Class 11 & 12</small>
+      <button id="installBtn" class="ss-btn"><span>⤓</span> Install app</button>
+      <small id="profileLine">Works offline · everything stays on this device</small>
     </div>
   </aside>
 
   <!-- ============ MAIN ============ -->
   <main id="main">
-    <!-- top bar -->
     <div class="topbar">
       <div>
-        <h1 id="pageTitle">Welcome to <span class="accentword">HoloStudy</span></h1>
-        <p id="pageSub">Your NCERT Class 11 & 12 study space — see the diagrams as real holograms.</p>
+        <h1 id="pageTitle">Welcome back</h1>
+        <p id="pageSub">Your NCERT Class 11 &amp; 12 study space.</p>
       </div>
       <label class="searchpill">
-        <span class="ic">⌕</span>
-        <input id="search" type="search" placeholder="Search chapters or holograms — e.g. nephron, Krebs, dipole" autocomplete="off" spellcheck="false">
+        <span class="ic" aria-hidden="true">⌕</span>
+        <input id="search" type="search" placeholder="Search chapters or holograms, e.g. nephron, Krebs, dipole" autocomplete="off" spellcheck="false" aria-label="Search">
       </label>
+      <button class="iconbtn" data-act="open-settings" aria-label="Study space settings" title="Themes, fonts, wallpaper, timer">⚙</button>
     </div>
 
     <!-- ===== DASHBOARD ===== -->
@@ -289,7 +253,7 @@
       <div class="hero">
         <div class="panel intro">
           <h2>Learn from the diagram, not just about it</h2>
-          <p>Every NEET-syllabus figure is rebuilt as a real, rotatable 3-D hologram — paired with voice-note listening, page-by-page reading, auto summaries and an AI study agent, all from the official NCERT text.</p>
+          <p>Every NEET-syllabus figure is rebuilt as a rotatable 3-D hologram, paired with voice-note listening, page-by-page reading, summaries and an AI study agent, all from the official NCERT text.</p>
           <div class="statgrid">
             <div class="stat"><b id="stChapters">79</b><small>CHAPTERS</small></div>
             <div class="stat"><b id="stHolo">124</b><small>HOLOGRAMS</small></div>
@@ -297,34 +261,33 @@
             <div class="stat"><b>13k</b><small>VOICE NOTES</small></div>
           </div>
         </div>
-        <div class="panel progwrap">
-          <div class="ring" id="ring"><div class="inner"><b id="ringPct">0%</b><small>explored</small></div></div>
-          <div>
-            <div style="font-weight:700" id="progLine">Start your first chapter</div>
-            <div style="color:var(--muted);font-size:12.5px" id="progSub">Progress saves on this device</div>
-          </div>
+        <div class="panel progpanel">
+          <h2>Your progress</h2>
+          <p class="sub" id="progLine">Start your first chapter</p>
+          <div class="progrow"><b>Overall</b><div class="ss-bar"><i id="barAll"></i></div><span id="pctAll">0%</span></div>
+          <div id="subjBars"></div>
           <div class="cta">
-            <button class="btn primary" id="resumeBtn">▶ Resume study</button>
-            <button class="btn ghost" data-view="holograms">🔮 Hologram Room</button>
+            <button class="btn primary" id="resumeBtn">Resume study</button>
+            <button class="btn" data-act="focus">Focus Mode</button>
           </div>
         </div>
       </div>
 
-      <div class="section-title"><h2>Subjects</h2><span class="line"></span><small>Class 11 &amp; 12 · tap to open chapters</small></div>
+      <div class="section-title"><h2>Subjects</h2><span class="line"></span><small>Class 11 &amp; 12</small></div>
       <div class="subjects" id="subjectCards"></div>
 
       <div class="section-title"><h2>Jump back in</h2><span class="line"></span></div>
-      <div class="chapgrid" id="recentGrid"><div class="empty">Chapters you open will appear here for quick access.</div></div>
+      <div class="chapgrid" id="recentGrid"><div class="empty">Chapters you open will appear here.</div></div>
     </section>
 
     <!-- ===== SUBJECT ===== -->
     <section class="view" id="view-subject" hidden>
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
-        <div class="classtoggle" id="classToggle">
+        <div class="classtoggle" id="classToggle" role="tablist">
           <button data-cls="11" class="on">Class 11</button>
           <button data-cls="12">Class 12</button>
         </div>
-        <div id="subjSummary" style="color:var(--muted);font-size:13px"></div>
+        <div id="subjSummary" style="color:var(--muted);font-size:.82rem"></div>
       </div>
       <div class="chapgrid" id="chapGrid"></div>
     </section>
@@ -343,65 +306,95 @@
 
     <!-- ===== ABOUT ===== -->
     <section class="view about" id="view-about" hidden>
-      <div class="panel" style="max-width:820px">
+      <div class="panel" style="max-width:860px">
         <h2 style="margin-top:0">About HoloStudy LMS</h2>
-        <p>HoloStudy LMS combines two study tools into one learning space for NCERT Class 11 &amp; 12 (NEET and CBSE boards):</p>
+        <p>HoloStudy combines two study tools into one quiet learning space for NCERT Class 11 &amp; 12 (NEET and CBSE boards):</p>
         <ul>
-          <li><b>🔮 Hologram Room</b> — <b>124 figures · 276 sub-views · 1,624 labels</b>. Each NCERT diagram is a real 3-D object you can orbit, zoom, explode and quiz yourself on. Not a flat picture — a rebuilt model.</li>
-          <li><b>📚 Study Console</b> — the full NCERT text (~600k words) as <b>Listen</b> (≈13,000 voice notes with karaoke highlighting), <b>Read</b> (page-by-page with re-read), <b>Summary</b> (confidence gauge + recall quiz) and an <b>AI agent</b> that answers from the chapter.</li>
+          <li><b>Hologram Room</b>: <b>124 figures · 276 sub-views · 1,624 labels</b>. Each NCERT diagram is a 3-D model you can orbit, zoom, explode and quiz yourself on.</li>
+          <li><b>Study Console</b>: the NCERT text as <b>Listen</b> (voice notes with word highlighting), <b>Read</b> (page by page), <b>Summary</b> (recall quiz) and an optional <b>AI agent</b>.</li>
         </ul>
-        <h3 style="color:var(--muted);font-size:13px;letter-spacing:.5px;margin-top:22px">USING IT</h3>
+
+        <h3>The study space</h3>
         <ul>
-          <li>Open a <b>subject → chapter</b>, then pick Listen / Read / Summary / Ask AI, or tap a hologram to open it in the 3-D room.</li>
-          <li>In the Hologram Room: drag to orbit, wheel/pinch to zoom, <span class="kbd">V</span> wireframe/x-ray, <span class="kbd">Q</span> quiz mode, <span class="kbd">L</span> labels.</li>
-          <li><b>Install</b> it (button in the sidebar, or your browser's "Add to Home screen") to use it like a native Android app, fully offline.</li>
+          <li><b>Ten black-and-white themes</b>, each checked to keep text at WCAG AA contrast (4.5:1) or better in Soft, Standard and High contrast.</li>
+          <li><b>Fonts</b>: Inter, IBM Plex Sans, Atkinson Hyperlegible, Source Serif 4, JetBrains Mono and Georgia, with text size and line-height sliders.</li>
+          <li><b>Wallpapers</b> with an overlay slider. Any wallpaper that would make text hard to read is flagged and the overlay is raised automatically.</li>
+          <li><b>Focus Mode</b> (lesson + notes only), a <b>Pomodoro timer</b>, <b>ambient sound</b> (rain, brown noise, silence) and a <b>warm light</b> filter for night study.</li>
+          <li>No autoplaying media, no pop-ups, no notification badges. Progress is shown as thin bars.</li>
         </ul>
-        <p style="font-size:12.5px;color:var(--dim);margin-top:20px">Text is NCERT's, bundled for personal study. Runs entirely on your device — nothing is uploaded. Progress is saved in this browser only.</p>
+        <p>Using it: open a <b>subject → chapter</b>, then Listen / Read / Summary / Ask AI, or a hologram. In the Hologram Room: drag to orbit, pinch to zoom, <span class="kbd">V</span> x-ray, <span class="kbd">Q</span> quiz, <span class="kbd">L</span> labels. <span class="kbd">Esc</span> leaves Focus Mode.</p>
+
+        <h3>Privacy</h3>
+        <p>Everything runs on your device. Settings, notes and progress are stored locally per profile and never uploaded. The app has no ads, analytics or trackers. The only feature that uses the internet is the optional <b>Ask AI</b> agent. It sends your question to Anthropic's API, and only when you use it with your own API key.</p>
+
+        <h3>Rights &amp; credits for outside assets</h3>
+        <table>
+          <tr><th>Asset</th><th>Author</th><th>Licence</th></tr>
+          <tr><td>Inter</td><td>The Inter Project Authors</td><td><a href="studyspace/fonts/licenses/inter-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>IBM Plex Sans</td><td>IBM Corp.</td><td><a href="studyspace/fonts/licenses/ibm-plex-sans-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Atkinson Hyperlegible</td><td>Braille Institute of America</td><td><a href="studyspace/fonts/licenses/atkinson-hyperlegible-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Source Serif 4</td><td>Adobe</td><td><a href="studyspace/fonts/licenses/source-serif-4-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>JetBrains Mono</td><td>The JetBrains Mono Project Authors</td><td><a href="studyspace/fonts/licenses/jetbrains-mono-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Gelasio (Georgia stand-in on Android)</td><td>The Gelasio Project Authors</td><td><a href="studyspace/fonts/licenses/gelasio-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Caveat (handwritten headings)</td><td>The Caveat Project Authors</td><td><a href="studyspace/fonts/licenses/caveat-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Rajdhani, Share Tech Mono (study console)</td><td>Indian Type Foundry; Carrois Type Design</td><td><a href="studyspace/fonts/licenses/rajdhani-LICENSE.txt" target="_blank">SIL OFL 1.1</a> · <a href="studyspace/fonts/licenses/share-tech-mono-LICENSE.txt" target="_blank">SIL OFL 1.1</a></td></tr>
+          <tr><td>Three.js r128</td><td>Three.js Authors</td><td>MIT</td></tr>
+          <tr><td>pdf.js 3.11</td><td>Mozilla Foundation</td><td>Apache 2.0</td></tr>
+          <tr><td>JSZip 3.10</td><td>Stuart Knightley and contributors</td><td>MIT (dual MIT/GPLv3)</td></tr>
+          <tr><td>Wallpapers &amp; theme artwork</td><td>Generated on the device by this app's code</td><td>No third-party images</td></tr>
+          <tr><td>NCERT textbook content</td><td>NCERT, Government of India</td><td>Bundled for personal study only. Ask NCERT for permission before any public distribution.</td></tr>
+        </table>
+        <p style="font-size:.8rem">HoloStudy is an independent study tool. It is not affiliated with or endorsed by NCERT, the NTA or CBSE.</p>
       </div>
     </section>
   </main>
 </div>
 
-<!-- bottom nav (mobile) -->
-<nav id="botnav"><div class="row">
+<!-- bottom nav (phones) -->
+<nav id="botnav" aria-label="Main"><div class="row">
   <button class="on" data-view="dashboard"><span class="ic">▚</span>Home</button>
   <button data-view="subject" data-subject="physics"><span class="ic">⚡</span>Physics</button>
   <button data-view="subject" data-subject="chemistry"><span class="ic">🧪</span>Chem</button>
   <button data-view="subject" data-subject="biology"><span class="ic">🧬</span>Bio</button>
   <button data-view="holograms"><span class="ic">🔮</span>Holo</button>
+  <button data-act="open-settings" data-tab-target="study"><span class="ic">◐</span>Study</button>
 </div></nav>
 
 <!-- chapter drawer -->
 <div id="scrim" hidden></div>
 <aside id="drawer" hidden aria-label="Chapter detail"></aside>
 
-<!-- fullscreen engine viewer -->
+<!-- lesson viewer (with notes; becomes the whole screen in Focus Mode) -->
 <div id="viewer" hidden>
   <div class="vbar">
     <button id="viewerBack">‹ Back</button>
     <div class="vtitle" id="viewerTitle"></div>
-    <button id="viewerOpen" title="Open in new tab">⤢ Full page</button>
+    <span class="ss-vtimer hide-sm"></span>
+    <button data-act="notes-toggle" aria-pressed="false">Notes</button>
+    <button data-act="focus" aria-pressed="false">Focus Mode</button>
+    <button id="viewerOpen" class="ss-hide-in-focus hide-sm" title="Open in a new tab">⤢ Full page</button>
   </div>
-  <div style="position:relative;flex:1;display:flex">
-    <div class="vspinner" id="viewerSpin"><div class="orb"></div><span>Loading…</span></div>
-    <iframe id="viewerFrame" title="Study engine" allow="autoplay; fullscreen"></iframe>
+  <div class="ss-vbody">
+    <div class="vspinner" id="viewerSpin">Loading lesson…</div>
+    <iframe id="viewerFrame" title="Lesson" allow="fullscreen"></iframe>
+    <aside id="ss-notes" hidden aria-label="Notes"></aside>
   </div>
 </div>
 
-<div id="toast" hidden></div>
+<div id="toast" hidden role="status"></div>
 
 <script src="data/curriculum.js"></script>
 <script>
 (function(){
   "use strict";
   const CUR = window.CURRICULUM;
+  const SS = window.SS;
+  const IN_APP = SS.native.available;
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
   const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const subjColor = {physics:'var(--phys)',chemistry:'var(--chem)',biology:'var(--bio)'};
   const ENG = { holo:'engines/holograms/index.html', study:'engines/study/study.html' };
 
-  // glyph per hologram (rough visual hint by keyword)
   function glyph(t){
     t=t.toLowerCase();
     if(/hear|circulat|blood/.test(t))return'❤';
@@ -421,13 +414,13 @@
     return'🔮';
   }
 
-  // ---------- state / progress ----------
-  const KEY='holostudy-lms-v1';
+  // ---------- progress (per study-space profile) ----------
+  const KEY = 'holostudy-lms-v1' + (SS.profileId()==='default' ? '' : ':' + SS.profileId());
   let store = load();
   function load(){ try{ return JSON.parse(localStorage.getItem(KEY))||{}; }catch(e){ return {}; } }
   function save(){ try{ localStorage.setItem(KEY,JSON.stringify(store)); }catch(e){} }
-  store.chapters = store.chapters||{};   // chapKey -> {opened, actions:{}, }
-  store.holos = store.holos||{};         // hash -> ts
+  store.chapters = store.chapters||{};
+  store.holos = store.holos||{};
   const chapKey = (subj,cls,no)=>`${subj}${cls}-${no}`;
 
   function markChapter(subj,cls,ch,action){
@@ -438,31 +431,29 @@
   }
   function markHolo(h){ store.holos[h]=Date.now(); save(); }
 
-  // ---------- toast ----------
-  let tT; function toast(m){ const t=$('#toast'); t.hidden=false; t.textContent=m; requestAnimationFrame(()=>t.classList.add('show')); clearTimeout(tT); tT=setTimeout(()=>{t.classList.remove('show'); setTimeout(()=>t.hidden=true,250);},2200); }
+  let tT; function toast(m){ const t=$('#toast'); t.hidden=false; t.textContent=m; requestAnimationFrame(()=>t.classList.add('show')); clearTimeout(tT); tT=setTimeout(()=>{t.classList.remove('show'); setTimeout(()=>t.hidden=true,250);},2600); }
 
   // ---------- navigation ----------
   let curView='dashboard', curSubject=null, curCls='11';
-  const titles={dashboard:['Welcome to <span class="accentword">HoloStudy</span>','Your NCERT Class 11 & 12 study space — see the diagrams as real holograms.'],
-    holograms:['🔮 Hologram Room','124 NCERT figures as real 3-D objects — orbit, zoom, explode, quiz.'],
-    about:['About','How this learning space is put together.'],
+  const titles={dashboard:['Welcome back','Your NCERT Class 11 & 12 study space.'],
+    holograms:['Hologram Room','124 NCERT figures as 3-D objects. Orbit, zoom, explode, quiz.'],
+    about:['About & credits','How this study space works, and who made its parts.'],
     search:['Search','']};
 
   function setView(v,opts={}){
     curView=v;
     $$('.view').forEach(s=>s.hidden = s.id!=='view-'+v);
-    $$('.navbtn,#botnav button').forEach(b=>{
+    $$('.navbtn,#botnav button[data-view]').forEach(b=>{
       const match = b.dataset.view===v && (!b.dataset.subject || b.dataset.subject===opts.subject);
       b.classList.toggle('on', match);
     });
     if(v==='subject'){ renderSubject(opts.subject); }
     else if(v==='holograms'){ renderHolograms(); }
     else if(v==='dashboard'){ renderDashboard(); }
-    if(titles[v]){ $('#pageTitle').innerHTML=titles[v][0]; $('#pageSub').textContent=titles[v][1]; }
+    if(titles[v]){ $('#pageTitle').textContent=titles[v][0]; $('#pageSub').textContent=titles[v][1]; }
     if(v!=='search') $('#search').value='';
     window.scrollTo(0,0);
   }
-
   $$('[data-view]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view,{subject:b.dataset.subject})));
 
   // ---------- dashboard ----------
@@ -471,31 +462,32 @@
     const done = Object.keys(store.chapters).length + Object.keys(store.holos).length;
     return Math.min(100, Math.round(done/totalUnits*100));
   }
+  function subjPct(s){
+    const ch = s.classes.reduce((a,c)=>a+c.chapterCount,0);
+    const opened = Object.values(store.chapters).filter(r=>r.subj===s.key).length;
+    return Math.round(opened/ch*100)||0;
+  }
   function renderDashboard(){
     $('#stChapters').textContent=CUR.meta.totalChapters;
     $('#stHolo').textContent=CUR.meta.totalFigures;
     const pct=overallPct();
-    $('#ring').style.setProperty('--p',pct);
-    $('#ringPct').textContent=pct+'%';
+    $('#barAll').style.width=pct+'%'; $('#pctAll').textContent=pct+'%';
     const nchap=Object.keys(store.chapters).length, nholo=Object.keys(store.holos).length;
     $('#progLine').textContent = (nchap||nholo)? `${nchap} chapter${nchap!=1?'s':''} · ${nholo} hologram${nholo!=1?'s':''} explored` : 'Start your first chapter';
-    // subject cards
+    $('#subjBars').innerHTML = CUR.subjects.map(s=>{ const p=subjPct(s); return `<div class="progrow"><span>${esc(s.name)}</span><div class="ss-bar"><i style="width:${p}%"></i></div><span>${p}%</span></div>`; }).join('');
     $('#subjectCards').innerHTML = CUR.subjects.map(s=>{
       const ch = s.classes.reduce((a,c)=>a+c.chapterCount,0);
       const holo = s.classes.reduce((a,c)=>a+c.hologramCount,0);
-      const opened = Object.values(store.chapters).filter(r=>r.subj===s.key).length;
-      const p = Math.round(opened/ch*100)||0;
-      return `<div class="subjcard" data-subject="${s.key}" style="--sc:${subjColor[s.key]}">
-        <div class="glow"></div>
-        <div class="emoji">${s.emoji}</div>
-        <h3>${s.name}</h3>
+      const p = subjPct(s);
+      return `<button class="subjcard" data-subject="${s.key}">
+        <div class="emoji" aria-hidden="true">${s.emoji}</div>
+        <h3>${esc(s.name)}</h3>
         <div class="meta">${ch} chapters · Class 11 &amp; 12</div>
-        <div class="bars"><div class="b"><i style="width:${p}%"></i></div></div>
-        <div class="holobadge">🔮 ${holo} holograms</div>
-      </div>`;
+        <div class="ss-bar" aria-label="${p}% explored"><i style="width:${p}%"></i></div>
+        <span class="holobadge">${holo} holograms · ${p}% explored</span>
+      </button>`;
     }).join('');
     $$('#subjectCards .subjcard').forEach(c=>c.addEventListener('click',()=>setView('subject',{subject:c.dataset.subject})));
-    // recent
     const recent = Object.entries(store.chapters).sort((a,b)=>(b[1].last||0)-(a[1].last||0)).slice(0,6);
     if(recent.length){
       $('#recentGrid').innerHTML = recent.map(([k,r])=>{
@@ -504,7 +496,7 @@
       }).join('');
       bindChapCards($('#recentGrid'));
     } else {
-      $('#recentGrid').innerHTML='<div class="empty">Chapters you open will appear here for quick access.</div>';
+      $('#recentGrid').innerHTML='<div class="empty">Chapters you open will appear here.</div>';
     }
   }
   function lookup(subjKey,cls,no){
@@ -513,10 +505,15 @@
     const ch=clsObj.chapters.find(c=>c.no===no);
     return {subj,cls:clsObj,ch};
   }
-
-  $('#resumeBtn').addEventListener('click',()=>{
+  function lastChapter(){
     const recent = Object.entries(store.chapters).sort((a,b)=>(b[1].last||0)-(a[1].last||0))[0];
-    if(recent){ const r=recent[1]; const {ch}=lookup(r.subj,r.cls,r.no); if(ch){ openChapter(r.subj,r.cls,ch); return; } }
+    if(!recent) return null;
+    const r=recent[1]; const {cls,ch}=lookup(r.subj,r.cls,r.no);
+    return ch ? {subj:r.subj, cls:r.cls, pack:cls.pack, ch} : null;
+  }
+  $('#resumeBtn').addEventListener('click',()=>{
+    const l=lastChapter();
+    if(l){ openChapter(l.subj,l.cls,l.ch); return; }
     setView('subject',{subject:'physics'});
   });
 
@@ -524,8 +521,7 @@
   function renderSubject(subjKey){
     curSubject=subjKey;
     const subj=CUR.subjects.find(s=>s.key===subjKey); if(!subj)return;
-    document.documentElement.style.setProperty('--accent',subjColor[subjKey]);
-    $('#pageTitle').innerHTML=`${subj.emoji} ${subj.name}`;
+    $('#pageTitle').textContent=subj.name;
     $('#pageSub').textContent=`NCERT ${subj.name} · pick a class and chapter`;
     $$('#classToggle button').forEach(b=>b.classList.toggle('on',b.dataset.cls===curCls));
     renderChapters();
@@ -534,26 +530,25 @@
 
   function chapCardHTML(subj,clsObj,ch){
     const holo=ch.holograms.length;
-    const k=chapKey(subj.key,clsObj.cls,ch.no);
-    const rec=store.chapters[k];
+    const rec=store.chapters[chapKey(subj.key,clsObj.cls,ch.no)];
     const nAct = rec? Object.keys(rec.actions||{}).length : 0;
     const p = rec? Math.min(100, nAct*25 + (rec.opened?10:0)) : 0;
     const done = p>=60;
-    return `<div class="chapcard ${done?'done':''}" data-subject="${subj.key}" data-cls="${clsObj.cls}" data-no="${ch.no}" style="--accent:${subjColor[subj.key]}">
-      ${holo?`<div class="holopill">🔮 ${holo}</div>`:''}
-      <div class="chnum">${subj.name.slice(0,4)} ${clsObj.cls} · Ch ${ch.no}</div>
+    return `<button class="chapcard" data-subject="${subj.key}" data-cls="${clsObj.cls}" data-no="${ch.no}">
+      ${holo?`<span class="holopill">${holo} holo</span>`:''}
+      <span class="chnum">${esc(subj.name)} ${clsObj.cls} · Ch ${ch.no}</span>
       <h4>${esc(ch.title)}</h4>
-      <div class="prog"><i style="width:${p}%"></i></div>
-      <div class="cmeta">
-        <span>📑 ${ch.sections} sections</span>
-        <span>📄 ${ch.pages} pages</span>
+      <span class="ss-bar"><i style="width:${p}%"></i></span>
+      <span class="cmeta">
+        <span>${ch.sections} sections</span>
+        <span>${ch.pages} pages</span>
         ${done?'<span class="doneflag">✓ studied</span>':''}
-      </div>
-    </div>`;
+      </span>
+    </button>`;
   }
   function bindChapCards(root){
     $$('.chapcard',root).forEach(c=>c.addEventListener('click',()=>{
-      const {subj,cls,ch}=lookup(c.dataset.subject,c.dataset.cls,+c.dataset.no);
+      const {ch}=lookup(c.dataset.subject,c.dataset.cls,+c.dataset.no);
       if(ch) openChapter(c.dataset.subject,c.dataset.cls,ch);
     }));
   }
@@ -569,86 +564,91 @@
   function openChapter(subjKey,cls,ch){
     const subj=CUR.subjects.find(s=>s.key===subjKey);
     const clsObj=subj.classes.find(c=>c.cls===cls);
-    const sc=subjColor[subjKey];
     markChapter(subjKey,cls,ch);
     const holoHTML = ch.holograms.length ? `<div class="holchiplist">`+ch.holograms.map(h=>`
-        <button class="holchip" data-hash="${h.hash}" style="--sc:${sc}">
-          <span class="dot">${glyph(h.title)}</span>
+        <button class="holchip" data-hash="${h.hash}">
+          <span class="dot glyph" aria-hidden="true">${glyph(h.title)}</span>
           <span class="tx"><b>${esc(h.title)}</b><small>${esc(h.fig)}${h.subviews?' · '+esc(h.subviews):''} · ${h.labels} labels</small></span>
-          <span class="go">→</span>
-        </button>`).join('')+`</div>` : `<div class="nohol">No dedicated hologram for this chapter yet — use Read + Hologram in the study console for an auto-generated model.</div>`;
+          <span class="go" aria-hidden="true">→</span>
+        </button>`).join('')+`</div>` : `<div class="nohol">No dedicated hologram for this chapter yet. Use Read in the study console for an auto-generated model.</div>`;
 
     const d=$('#drawer');
-    d.style.setProperty('--accent',sc); d.style.setProperty('--sc',sc);
     d.innerHTML = `
       <div class="drawhead">
         <button class="close" id="drawClose" aria-label="Close">×</button>
-        <div class="eyebrow" style="color:${sc}">${subj.emoji} ${subj.name} · Class ${cls} · Chapter ${ch.no}</div>
+        <div class="eyebrow">${esc(subj.name)} · Class ${cls} · Chapter ${ch.no}</div>
         <h2>${esc(ch.title)}</h2>
-        <div class="cmeta"><span>📑 ${ch.sections} sections</span><span>📄 ${ch.pages} pages</span><span>📝 ~${(ch.words/1000).toFixed(0)}k words</span>${ch.holograms.length?`<span style="color:${sc}">🔮 ${ch.holograms.length} holograms</span>`:''}</div>
+        <div class="cmeta"><span>${ch.sections} sections</span><span>${ch.pages} pages</span><span>~${(ch.words/1000).toFixed(0)}k words</span>${ch.holograms.length?`<span>${ch.holograms.length} holograms</span>`:''}</div>
       </div>
       <div class="drawbody">
         <h3>Study this chapter</h3>
         <div class="actgrid">
-          <button class="actbtn" data-act="listen"><span class="ic">🎧</span><span><b>Listen</b><small>Voice notes, karaoke</small></span></button>
-          <button class="actbtn" data-act="read"><span class="ic">📖</span><span><b>Read</b><small>Page by page</small></span></button>
-          <button class="actbtn" data-act="summary"><span class="ic">✅</span><span><b>Summary</b><small>Recall quiz</small></span></button>
-          <button class="actbtn" data-act="agent"><span class="ic">🤖</span><span><b>Ask AI</b><small>Study agent</small></span></button>
+          <button class="actbtn" data-act-study="listen"><span class="ic">🎧</span><span><b>Listen</b><small>Voice notes with word highlighting</small></span></button>
+          <button class="actbtn" data-act-study="read"><span class="ic">📖</span><span><b>Read</b><small>Page by page</small></span></button>
+          <button class="actbtn" data-act-study="summary"><span class="ic">✅</span><span><b>Summary</b><small>Recall quiz</small></span></button>
+          <button class="actbtn" data-act-study="agent"><span class="ic">🤖</span><span><b>Ask AI</b><small>Study agent (online)</small></span></button>
+          <button class="actbtn wide" data-act-study="focus"><span class="ic">◐</span><span><b>Read in Focus Mode</b><small>Only the lesson and your notes, nothing else</small></span></button>
         </div>
         <h3>Holograms for this chapter</h3>
         ${holoHTML}
       </div>`;
-    $('#drawClose',d).addEventListener('click',closeDrawer);
-    $$('.actbtn',d).forEach(b=>b.addEventListener('click',()=>{ openStudy(subjKey,cls,clsObj.pack,ch,b.dataset.act); }));
+    $('#drawClose',d).addEventListener('click',()=>{ if(history.state&&history.state.drawer) history.back(); else closeDrawer(); });
+    $$('.actbtn',d).forEach(b=>b.addEventListener('click',()=>{
+      const act=b.dataset.actStudy;
+      if(act==='focus'){ openStudy(subjKey,cls,clsObj.pack,ch,'read'); SS.focus.enter(); }
+      else openStudy(subjKey,cls,clsObj.pack,ch,act);
+    }));
     $$('.holchip',d).forEach(b=>b.addEventListener('click',()=>{ openHologram(b.dataset.hash, subjKey, ch); }));
     d.hidden=false; $('#scrim').hidden=false;
-    requestAnimationFrame(()=>{ d.classList.add('show'); $('#scrim').classList.add('show'); });
-    history.pushState({drawer:1},'');
+    requestAnimationFrame(()=>{ d.classList.add('show'); $('#scrim').classList.add('show'); SS.updateBlur(); });
+    if(!(history.state&&history.state.drawer)) history.pushState({drawer:1},'');
   }
   function closeDrawer(){
-    const d=$('#drawer'); d.classList.remove('show'); $('#scrim').classList.remove('show');
-    setTimeout(()=>{ d.hidden=true; $('#scrim').hidden=true; },260);
+    const d=$('#drawer'); if(d.hidden) return;
+    d.classList.remove('show'); $('#scrim').classList.remove('show');
+    setTimeout(()=>{ d.hidden=true; $('#scrim').hidden=true; SS.updateBlur(); },250);
   }
-  $('#scrim').addEventListener('click',closeDrawer);
+  $('#scrim').addEventListener('click',()=>{ if(history.state&&history.state.drawer) history.back(); else closeDrawer(); });
 
-  // ---------- engine viewer (iframe overlay) ----------
+  // ---------- lesson viewer ----------
   let viewerUrl='', viewerOpen=false;
-  function openViewer(url,title,sub){
+  function openViewer(url,title,sub,key){
     viewerUrl=url;
     $('#viewerTitle').innerHTML=`${esc(title)}${sub?` <small>· ${esc(sub)}</small>`:''}`;
     const f=$('#viewerFrame'); const spin=$('#viewerSpin');
-    spin.style.display='flex';
-    f.onload=()=>{ spin.style.display='none'; };
-    // use location.replace when the frame already holds a same-origin page, so re-loading
-    // the iframe does NOT push extra browser-history entries (which would break Back)
+    spin.style.display='block';
+    f.onload=()=>{ spin.style.display='none'; SS.frameLoaded(f); };
+    // replace (not push) so reloading the frame never adds history entries that would break Back
     try{
       if(f.contentWindow && f.src && f.src!=='about:blank'){ f.contentWindow.location.replace(url); }
       else { f.src=url; }
     }catch(e){ f.src=url; }
     const v=$('#viewer'); v.hidden=false; requestAnimationFrame(()=>v.classList.add('show'));
     document.body.style.overflow='hidden';
-    if(!viewerOpen) history.pushState({viewer:1},''); // one history entry for hardware Back
+    if(!viewerOpen) history.pushState({viewer:1},'');
     viewerOpen=true;
+    SS.lesson.open({key, title});
   }
   function closeViewer(){
     if(!viewerOpen) return;
     viewerOpen=false;
+    SS.lesson.close();
     const v=$('#viewer'); v.classList.remove('show');
-    setTimeout(()=>{ v.hidden=true; try{$('#viewerFrame').contentWindow.location.replace('about:blank');}catch(e){$('#viewerFrame').src='about:blank';} document.body.style.overflow=''; },300);
+    setTimeout(()=>{ v.hidden=true; try{$('#viewerFrame').contentWindow.location.replace('about:blank');}catch(e){$('#viewerFrame').src='about:blank';} document.body.style.overflow=''; },200);
   }
   $('#viewerBack').addEventListener('click',()=>{ if(history.state&&history.state.viewer) history.back(); else closeViewer(); });
   $('#viewerOpen').addEventListener('click',()=>{ if(viewerUrl) window.open(viewerUrl,'_blank'); });
+  if(IN_APP) $('#viewerOpen').remove();
 
   function openStudy(subjKey,cls,pack,ch,act){
     markChapter(subjKey,cls,ch,act);
-    const label={listen:'🎧 Listen',read:'📖 Read',summary:'✅ Summary',agent:'🤖 Ask AI'}[act]||act;
+    const label={listen:'Listen',read:'Read',summary:'Summary',agent:'Ask AI'}[act]||act;
     const url=`${ENG.study}?pack=${encodeURIComponent(pack)}&tab=${act}&ch=${ch.no}`;
-    openViewer(url, `${label} — ${ch.title}`, `Class ${cls}`);
+    openViewer(url, `${label}: ${ch.title}`, `Class ${cls}`, chapKey(subjKey,cls,ch.no));
   }
   function openHologram(hash,subjKey,ch){
     markHolo(hash);
-    const url=`${ENG.holo}#${hash}`;
-    openViewer(url, `🔮 ${ch?ch.title:'Hologram'}`, 'Hologram Room');
+    openViewer(`${ENG.holo}#${hash}`, ch?ch.title:'Hologram', 'Hologram Room', 'holo:'+hash);
   }
 
   // hardware/browser back closes overlays in order
@@ -657,35 +657,48 @@
     if(!$('#drawer').hidden){ closeDrawer(); return; }
   });
 
+  // hooks used by Focus Mode and the Android back button
+  SS.hooks.resume = ()=>{ const l=lastChapter(); if(!l) return false; openStudy(l.subj,l.cls,l.pack,l.ch,'read'); return true; };
+  SS.hooks.back = ()=>{
+    if(!$('#viewer').hidden){ if(history.state&&history.state.viewer) history.back(); else closeViewer(); return true; }
+    if(!$('#drawer').hidden){ if(history.state&&history.state.drawer) history.back(); else closeDrawer(); return true; }
+    if(curView!=='dashboard'){ setView('dashboard'); return true; }
+    return false;
+  };
+
   // ---------- holograms browser ----------
   let holFilter='all';
   function allHolos(){
     const out=[];
     CUR.subjects.forEach(s=>s.classes.forEach(c=>c.chapters.forEach(ch=>ch.holograms.forEach(h=>{
-      out.push({...h, subj:s.key, subjName:s.name, emoji:s.emoji, cls:c.cls, chNo:ch.no, chTitle:ch.title, sc:subjColor[s.key]});
+      out.push({...h, subj:s.key, subjName:s.name, cls:c.cls, chNo:ch.no, chTitle:ch.title});
     }))));
     return out;
   }
+  function holCardHTML(h){
+    return `<button class="holcard" data-hash="${h.hash}" data-subj="${h.subj}" data-ch="${h.chNo}" data-cls="${h.cls}">
+        <span class="thumb"><span class="glyph" aria-hidden="true">${glyph(h.title)}</span></span>
+        <span class="fig">${esc(h.subjName)} ${h.cls} · ${esc(h.fig)}</span>
+        <h4>${esc(h.title)}</h4>
+        <span class="sv">${h.subviews?esc(h.subviews):'Ch '+h.chNo+' · '+esc(h.chTitle)}</span>
+        <span class="lb">${h.labels} labels${store.holos[h.hash]?' · viewed':''}</span>
+      </button>`;
+  }
+  function bindHolCards(root){
+    $$('.holcard',root).forEach(c=>c.addEventListener('click',()=>{
+      const {ch}=lookup(c.dataset.subj,c.dataset.cls,+c.dataset.ch);
+      openHologram(c.dataset.hash,c.dataset.subj,ch);
+    }));
+  }
   function renderHolograms(){
-    document.documentElement.style.setProperty('--accent','var(--cyan)');
-    const filters=[['all','All 124'],['physics','⚡ Physics'],['chemistry','🧪 Chemistry'],['biology','🧬 Biology'],['fav','★ Viewed']];
+    const filters=[['all','All 124'],['physics','Physics'],['chemistry','Chemistry'],['biology','Biology'],['fav','Viewed']];
     $('#holFilter').innerHTML=filters.map(([k,l])=>`<button class="chip ${k===holFilter?'on':''}" data-f="${k}">${l}</button>`).join('');
     $$('#holFilter .chip').forEach(b=>b.addEventListener('click',()=>{ holFilter=b.dataset.f; renderHolograms(); }));
     let list=allHolos();
     if(holFilter==='fav') list=list.filter(h=>store.holos[h.hash]);
     else if(holFilter!=='all') list=list.filter(h=>h.subj===holFilter);
-    $('#holGrid').innerHTML = list.length? list.map(h=>`
-      <div class="holcard" data-hash="${h.hash}" data-subj="${h.subj}" data-ch="${h.chNo}" data-cls="${h.cls}" style="--sc:${h.sc}">
-        <div class="thumb"><div class="scan"></div><div class="glyph">${glyph(h.title)}</div></div>
-        <div class="fig">${h.emoji} ${esc(h.subjName)} ${h.cls} · ${esc(h.fig)}</div>
-        <h4>${esc(h.title)}</h4>
-        <div class="sv">${h.subviews?esc(h.subviews):'Ch '+h.chNo+' · '+esc(h.chTitle)}</div>
-        <span class="lb">${h.labels} labels ${store.holos[h.hash]?'· ★ viewed':''}</span>
-      </div>`).join('') : '<div class="empty">No holograms viewed yet — open one and it will show here.</div>';
-    $$('#holGrid .holcard').forEach(c=>c.addEventListener('click',()=>{
-      const {ch}=lookup(c.dataset.subj,c.dataset.cls,+c.dataset.ch);
-      openHologram(c.dataset.hash,c.dataset.subj,ch);
-    }));
+    $('#holGrid').innerHTML = list.length? list.map(holCardHTML).join('') : '<div class="empty">No holograms viewed yet. Open one and it will show here.</div>';
+    bindHolCards($('#holGrid'));
   }
 
   // ---------- search ----------
@@ -698,37 +711,36 @@
     const chapHits=[]; const holoHits=[];
     CUR.subjects.forEach(s=>s.classes.forEach(c=>c.chapters.forEach(ch=>{
       if(ch.title.toLowerCase().includes(ql)) chapHits.push({s,c,ch});
-      ch.holograms.forEach(h=>{ if((h.title+' '+h.subviews+' '+h.fig).toLowerCase().includes(ql)) holoHits.push({s,c,ch,h}); });
+      ch.holograms.forEach(h=>{ if((h.title+' '+h.subviews+' '+h.fig).toLowerCase().includes(ql)) holoHits.push({...h, subj:s.key, subjName:s.name, cls:c.cls, chNo:ch.no, chTitle:ch.title}); });
     })));
     $('#searchCount').textContent=`${chapHits.length} chapters · ${holoHits.length} holograms`;
     let html='';
     if(chapHits.length){
-      html+='<div class="section-title"><h2 style="font-size:14px">Chapters</h2><span class="line"></span></div><div class="chapgrid">';
+      html+='<div class="section-title"><h2>Chapters</h2><span class="line"></span></div><div class="chapgrid">';
       html+=chapHits.slice(0,12).map(({s,c,ch})=>chapCardHTML(s,c,ch)).join('')+'</div>';
     }
     if(holoHits.length){
-      html+='<div class="section-title"><h2 style="font-size:14px">Holograms</h2><span class="line"></span></div><div class="holgrid">';
-      html+=holoHits.slice(0,24).map(({s,c,ch,h})=>`
-        <div class="holcard" data-hash="${h.hash}" data-subj="${s.key}" data-cls="${c.cls}" data-ch="${ch.no}" style="--sc:${subjColor[s.key]}">
-          <div class="thumb"><div class="scan"></div><div class="glyph">${glyph(h.title)}</div></div>
-          <div class="fig">${s.emoji} ${esc(s.name)} ${c.cls} · ${esc(h.fig)}</div>
-          <h4>${esc(h.title)}</h4><div class="sv">Ch ${ch.no} · ${esc(ch.title)}</div>
-          <span class="lb">${h.labels} labels</span>
-        </div>`).join('')+'</div>';
+      html+='<div class="section-title"><h2>Holograms</h2><span class="line"></span></div><div class="holgrid">';
+      html+=holoHits.slice(0,24).map(holCardHTML).join('')+'</div>';
     }
-    if(!chapHits.length && !holoHits.length) html='<div class="empty">No matches for “'+esc(q)+'”. Try a diagram name like nephron, Krebs cycle, dipole, or a chapter title.</div>';
+    if(!chapHits.length && !holoHits.length) html='<div class="empty">No matches for “'+esc(q)+'”. Try a diagram name like nephron, Krebs cycle or dipole, or a chapter title.</div>';
     $('#searchOut').innerHTML=html;
     bindChapCards($('#searchOut'));
-    $$('#searchOut .holcard').forEach(c=>c.addEventListener('click',()=>{ const {ch}=lookup(c.dataset.subj,c.dataset.cls,+c.dataset.ch); openHologram(c.dataset.hash,c.dataset.subj,ch); }));
+    bindHolCards($('#searchOut'));
   }
 
-  // ---------- PWA install ----------
-  let deferredPrompt=null;
-  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; $('#installBtn').classList.add('show'); });
-  $('#installBtn').addEventListener('click',async()=>{ if(!deferredPrompt){ toast('Use your browser menu → “Add to Home screen”.'); return; } deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $('#installBtn').classList.remove('show'); });
-  window.addEventListener('appinstalled',()=>{ toast('Installed! Open HoloStudy from your home screen.'); $('#installBtn').classList.remove('show'); });
-  if('serviceWorker' in navigator && location.protocol.startsWith('http')){
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // ---------- study tools in the sidebar ----------
+  $('#sideTools').innerHTML = SS.pomoHTML(true) + SS.ambHTML() +
+    '<button class="ss-btn" data-act="focus">Focus Mode</button><button class="ss-btn quiet" data-act="open-settings">Themes, fonts &amp; wallpaper</button>';
+  $('#profileLine').textContent = `Profile: ${SS.profileName()} · everything stays on this device`;
+
+  // ---------- PWA install (browser only; the Android app is already installed) ----------
+  if(!IN_APP){
+    let deferredPrompt=null;
+    window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferredPrompt=e; $('#installBtn').classList.add('show'); });
+    $('#installBtn').addEventListener('click',async()=>{ if(!deferredPrompt){ toast('Use your browser menu → Add to Home screen.'); return; } deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt=null; $('#installBtn').classList.remove('show'); });
+    window.addEventListener('appinstalled',()=>{ toast('Installed. Open HoloStudy from your home screen.'); $('#installBtn').classList.remove('show'); });
+    if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
 
   // ---------- go ----------

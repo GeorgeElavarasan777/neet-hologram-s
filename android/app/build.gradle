@@ -1,0 +1,60 @@
+plugins {
+    id 'com.android.application'
+}
+
+// The web app (index.html, engines/, studyspace/, …) lives at the repository root so it still runs
+// in a browser with `node serve.js`. This task copies it into the APK's assets at build time, so
+// there is exactly one copy of the web code in git.
+def webRoot = rootProject.file('..')
+def webAssetsDir = layout.buildDirectory.dir('generated/webassets')
+
+tasks.register('syncWebAssets', Sync) {
+    into webAssetsDir
+    from(new File(webRoot, 'index.html'))
+    from(new File(webRoot, 'manifest.webmanifest'))
+    from(new File(webRoot, 'data/curriculum.js')) { into 'data' }
+    ['engines', 'studyspace', 'vendor', 'assets/icons'].each { dir ->
+        from(new File(webRoot, dir)) {
+            into dir
+            exclude '**/*.py', '**/*.md', '**/source-icon.png'
+        }
+    }
+}
+
+android {
+    namespace 'com.holostudy.lms'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.holostudy.lms'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Signed with the local debug key so it installs directly; use your own keystore for Play.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    sourceSets {
+        main {
+            assets.srcDirs += webAssetsDir.get().asFile
+        }
+    }
+}
+
+preBuild.dependsOn 'syncWebAssets'
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.12.1'
+}

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Monochrome "H" hologram: two silver pillars, a grey crossbar and a projector ring.
+     Drawn inside the adaptive-icon safe zone (the central 66 of 108 units). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#E4E7EB"
+        android:pathData="M38.5,31h6a2.5,2.5 0,0 1,2.5 2.5v33a2.5,2.5 0,0 1,-2.5 2.5h-6a2.5,2.5 0,0 1,-2.5 -2.5v-33a2.5,2.5 0,0 1,2.5 -2.5z" />
+    <path
+        android:fillColor="#E4E7EB"
+        android:pathData="M63.5,31h6a2.5,2.5 0,0 1,2.5 2.5v33a2.5,2.5 0,0 1,-2.5 2.5h-6a2.5,2.5 0,0 1,-2.5 -2.5v-33a2.5,2.5 0,0 1,2.5 -2.5z" />
+    <path
+        android:fillColor="#8E96A1"
+        android:pathData="M47,46.5h14v6h-14z" />
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#8E96A1"
+        android:strokeWidth="1.6"
+        android:pathData="M30,77a24,4.2 0,1 0,48 0a24,4.2 0,1 0,-48 0z" />
+</vector>

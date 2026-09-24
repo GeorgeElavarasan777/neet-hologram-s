@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Graphite Gradient (the default theme) top colour: the window shows this before the page paints,
+         so there is no white flash on launch. -->
+    <color name="window_bg">#101114</color>
+    <color name="icon_bg">#101114</color>
+</resources>

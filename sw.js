@@ -1,5 +1,5 @@
 /* HoloStudy LMS service worker — offline app shell + engines cached on install. */
-const CACHE = 'holostudy-lms-v1';
+const CACHE = 'holostudy-lms-v2';
 const ASSETS = [
   './',
   './index.html',
@@ -12,7 +12,12 @@ const ASSETS = [
   './engines/study/holostudy-demos.js',
   './assets/icons/icon.svg',
   './assets/icons/icon-192.png',
-  './assets/icons/icon-512.png'
+  './assets/icons/icon-512.png',
+  './studyspace/fonts.css',
+  './studyspace/studyspace.css',
+  './studyspace/themes.js',
+  './studyspace/wallpapers.js',
+  './studyspace/studyspace.js'
 ];
 
 self.addEventListener('install', (e) => {

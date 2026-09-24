@@ -1,0 +1,8 @@
+/* Offline stand-in for fonts.googleapis.com/css2?family=Rajdhani…&family=Share+Tech+Mono.
+   The Android app serves this file in place of the Google Fonts request (see WebAssets.java),
+   so the study console's display fonts work with no network. Absolute URLs: this stylesheet is
+   served under the fonts.googleapis.com URL, so relative paths would resolve to the wrong host. */
+@font-face{font-family:"Rajdhani";font-weight:500;font-style:normal;font-display:swap;src:url("https://appassets.androidplatform.net/assets/studyspace/fonts/rajdhani-latin-500-normal.woff2") format("woff2");}
+@font-face{font-family:"Rajdhani";font-weight:600;font-style:normal;font-display:swap;src:url("https://appassets.androidplatform.net/assets/studyspace/fonts/rajdhani-latin-600-normal.woff2") format("woff2");}
+@font-face{font-family:"Rajdhani";font-weight:700;font-style:normal;font-display:swap;src:url("https://appassets.androidplatform.net/assets/studyspace/fonts/rajdhani-latin-700-normal.woff2") format("woff2");}
+@font-face{font-family:"Share Tech Mono";font-weight:400;font-style:normal;font-display:swap;src:url("https://appassets.androidplatform.net/assets/studyspace/fonts/share-tech-mono-latin-400-normal.woff2") format("woff2");}
