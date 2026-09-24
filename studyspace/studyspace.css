@@ -10,6 +10,7 @@
   --bg-image:none;
   --font-body:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-head:var(--font-body);
+  --font-read:var(--font-body);
   --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
   --fs:17px; --lh:1.6; --radius:12px;
   --dur:160ms; --ease:cubic-bezier(.2,.7,.2,1);
@@ -119,8 +120,19 @@ html[data-wall-target="header"].ss-has-wall .topbar{padding:18px 20px;border-rad
 .ss-fonts button small{color:var(--muted);font:500 .7rem/1 var(--font-body);}
 .ss-fonts button[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
 .ss-preview{padding:.9em 1em;border-radius:10px;border:1px solid var(--border);background:var(--surface);margin:0 0 1rem;}
-.ss-preview p{margin:0;font-size:1rem;line-height:var(--lh);}
+.ss-preview p{margin:0 0 .45em;font-size:1rem;line-height:var(--lh);}
 .ss-preview b{display:block;font:700 1.1rem/1.25 var(--font-head);margin-bottom:.3em;}
+.ss-preview .pv-body{font-family:var(--font-body);color:var(--muted);font-size:.88rem;}
+.ss-preview .pv-read{font-family:var(--font-read);}
+.ss-preview .pv-mono{display:block;font:500 .82rem/1.2 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted);}
+
+/* font pairings */
+.ss-pairings{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 .4rem;}
+.ss-pairings button{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:58px;padding:.6em .75em;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;text-align:left;}
+.ss-pairings button b{font-size:1rem;font-weight:600;line-height:1.2;}
+.ss-pairings button small{font-size:.72rem;color:var(--muted);line-height:1.3;}
+.ss-pairings button[aria-checked="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}
+#ss-fontlist{margin-top:.2rem;}
 
 /* wallpaper gallery */
 .ss-wpcat{margin:0 0 1rem;}
@@ -154,7 +166,7 @@ html[data-wall-target="header"].ss-has-wall .topbar{padding:18px 20px;border-rad
 #ss-notes[hidden]{display:none;}
 #ss-notes header{display:flex;align-items:center;justify-content:space-between;gap:.5em;padding:10px 14px;border-bottom:1px solid var(--border);font:600 .8rem/1.2 var(--font-body);color:var(--muted);}
 #ss-notes textarea{flex:1;width:100%;resize:none;border:0;outline:none;padding:14px 16px;background:transparent;color:var(--text);
-  font:400 1rem/var(--lh) var(--font-body);}
+  font:400 1rem/var(--lh) var(--font-read);}
 #ss-notes textarea::placeholder{color:var(--muted);}
 #ss-notes footer{padding:6px 14px 10px;font:400 .7rem/1.2 var(--font-body);color:var(--muted);}
 .ss-vtimer{font:600 .8rem/1 var(--font-mono);font-variant-numeric:tabular-nums;color:var(--muted);padding:0 .4em;}

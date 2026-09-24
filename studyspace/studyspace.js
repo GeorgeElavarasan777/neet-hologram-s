@@ -45,7 +45,7 @@
   const DEFAULTS = {
     v: 1,
     theme: 'graphite', contrast: 'standard',
-    font: { family: 'inter', size: 17, lineHeight: 1.6, handwritten: false },
+    font: { family: 'inter', heading: 'auto', reading: 'auto', mono: 'jetbrains', size: 17, lineHeight: 1.6 },
     warm: { on: false, strength: 0.18 },
     wallpaper: { id: null, target: 'full', overlay: 0.35, autoBlur: true },
     sound: { type: 'rain', volume: 0.4 },
@@ -61,6 +61,9 @@
     return out;
   }
   let prefs = merge(DEFAULTS, store.get(K.prefs(), {}));
+  // older saves: the Chalkboard-only "handwritten headings" switch is now the Caveat heading font
+  if (prefs.font.handwritten) { if (prefs.font.heading === 'auto') prefs.font.heading = 'caveat'; }
+  delete prefs.font.handwritten;
   let saveT;
   function savePrefs() { clearTimeout(saveT); saveT = setTimeout(() => store.set(K.prefs(), prefs), 200); }
   function setPref(path, value) {
@@ -73,15 +76,53 @@
   }
 
   // ───────────────────────── fonts ─────────────────────────
+  // Every font is bundled (SIL OFL). `roles` says where it is offered:
+  // text = body / headings / lesson reading; head = headings only; mono = numbers & timer.
   const FONTS = [
-    { id: 'inter', name: 'Inter', stack: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', note: 'Clean, neutral sans' },
-    { id: 'plex', name: 'IBM Plex Sans', stack: '"IBM Plex Sans", system-ui, sans-serif', note: 'Technical and friendly' },
-    { id: 'atkinson', name: 'Atkinson Hyperlegible', stack: '"Atkinson Hyperlegible", system-ui, sans-serif', note: 'Accessibility: distinct letterforms' },
-    { id: 'sourceserif', name: 'Source Serif 4', stack: '"Source Serif 4", Georgia, "Gelasio", serif', note: 'Book-like serif' },
-    { id: 'jetbrains', name: 'JetBrains Mono', stack: '"JetBrains Mono", ui-monospace, Consolas, monospace', note: 'Monospace' },
-    { id: 'georgia', name: 'Georgia', stack: 'Georgia, "Gelasio", "Source Serif 4", serif', note: 'Classic serif' },
+    { id: 'inter', name: 'Inter', kind: 'Sans', stack: '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif', note: 'Clean, neutral', roles: ['text'] },
+    { id: 'dmsans', name: 'DM Sans', kind: 'Sans', stack: '"DM Sans", "Inter", system-ui, sans-serif', note: 'Soft geometric, calm', roles: ['text'] },
+    { id: 'plex', name: 'IBM Plex Sans', kind: 'Sans', stack: '"IBM Plex Sans", system-ui, sans-serif', note: 'Technical and friendly', roles: ['text'] },
+    { id: 'lexend', name: 'Lexend', kind: 'Sans', stack: '"Lexend", system-ui, sans-serif', note: 'Designed for reading fluency', roles: ['text'] },
+    { id: 'atkinson', name: 'Atkinson Hyperlegible', kind: 'Accessible', stack: '"Atkinson Hyperlegible", system-ui, sans-serif', note: 'Distinct letterforms for low vision', roles: ['text'] },
+    { id: 'opendyslexic', name: 'OpenDyslexic', kind: 'Accessible', stack: '"OpenDyslexic", "Atkinson Hyperlegible", sans-serif', note: 'Weighted letters for dyslexic readers', roles: ['text'] },
+    { id: 'sourceserif', name: 'Source Serif 4', kind: 'Serif', stack: '"Source Serif 4", Georgia, "Gelasio", serif', note: 'Book-like serif', roles: ['text'] },
+    { id: 'newsreader', name: 'Newsreader', kind: 'Serif', stack: '"Newsreader", "Source Serif 4", Georgia, serif', note: 'Warm text serif for long answers', roles: ['text'] },
+    { id: 'literata', name: 'Literata', kind: 'Serif', stack: '"Literata", "Source Serif 4", Georgia, serif', note: 'Made for long-form e-reading', roles: ['text'] },
+    { id: 'merriweather', name: 'Merriweather', kind: 'Serif', stack: '"Merriweather", Georgia, serif', note: 'Sturdy serif for screens', roles: ['text'] },
+    { id: 'georgia', name: 'Georgia', kind: 'Serif', stack: 'Georgia, "Gelasio", "Source Serif 4", serif', note: 'Classic serif', roles: ['text'] },
+    { id: 'jetbrains', name: 'JetBrains Mono', kind: 'Mono', stack: '"JetBrains Mono", ui-monospace, Consolas, monospace', note: 'Clear monospace', roles: ['text', 'mono'] },
+    { id: 'caveat', name: 'Caveat', kind: 'Handwritten', stack: '"Caveat", "Inter", cursive', note: 'Chalk-style handwriting', roles: ['head'] },
+    { id: 'plexmono', name: 'IBM Plex Mono', kind: 'Mono', stack: '"IBM Plex Mono", ui-monospace, monospace', note: 'Friendly monospace', roles: ['mono'] },
+    { id: 'sharetech', name: 'Share Tech Mono', kind: 'Mono', stack: '"Share Tech Mono", ui-monospace, monospace', note: 'Instrument-panel digits', roles: ['mono'] },
   ];
   const fontOf = (id) => FONTS.find((f) => f.id === id) || FONTS[0];
+
+  // The four parts of the app that each get their own font, and the preference that stores it.
+  const FONT_ROLES = [
+    { id: 'heading', label: 'Headings', path: 'font.heading', auto: 'Theme default', offers: ['text', 'head'] },
+    { id: 'body', label: 'Body', path: 'font.family', offers: ['text'] },
+    { id: 'reading', label: 'Lessons', path: 'font.reading', auto: 'Same as body', offers: ['text'] },
+    { id: 'mono', label: 'Numbers', path: 'font.mono', offers: ['mono'] },
+  ];
+  // Ready-made pairings: one tap sets all four roles.
+  const PAIRINGS = [
+    { id: 'clean', name: 'Clean', note: 'Inter everywhere', set: { family: 'inter', heading: 'auto', reading: 'auto', mono: 'jetbrains' } },
+    { id: 'claude', name: 'Claude-style', note: 'Serif answers, soft sans interface', set: { family: 'dmsans', heading: 'newsreader', reading: 'newsreader', mono: 'jetbrains' } },
+    { id: 'textbook', name: 'Textbook', note: 'Printed-book serifs', set: { family: 'plex', heading: 'merriweather', reading: 'literata', mono: 'plexmono' } },
+    { id: 'easy', name: 'Easy reading', note: 'Lexend throughout', set: { family: 'lexend', heading: 'lexend', reading: 'lexend', mono: 'jetbrains' } },
+    { id: 'accessible', name: 'Accessible', note: 'Atkinson Hyperlegible', set: { family: 'atkinson', heading: 'atkinson', reading: 'atkinson', mono: 'plexmono' } },
+    { id: 'dyslexia', name: 'Dyslexia-friendly', note: 'OpenDyslexic', set: { family: 'opendyslexic', heading: 'opendyslexic', reading: 'opendyslexic', mono: 'plexmono' } },
+    { id: 'chalk', name: 'Chalk notes', note: 'Handwritten headings', set: { family: 'inter', heading: 'caveat', reading: 'auto', mono: 'sharetech' } },
+  ];
+  const pairingActive = (p) => Object.keys(p.set).every((k) => prefs.font[k] === p.set[k]);
+  // resolved stacks for each role
+  function fontStacks() {
+    const body = fontOf(prefs.font.family).stack, th = current.theme;
+    const heading = prefs.font.heading && prefs.font.heading !== 'auto' ? fontOf(prefs.font.heading).stack : th.headingFont || body;
+    const reading = prefs.font.reading && prefs.font.reading !== 'auto' ? fontOf(prefs.font.reading).stack : body;
+    const mono = fontOf(prefs.font.mono || 'jetbrains').stack;
+    return { body, heading, reading, mono };
+  }
 
   // ───────────────────────── apply ─────────────────────────
   let current = null; // { theme, tok }
@@ -102,13 +143,14 @@
     Native.send('window', 'theme', { top: tok.bg, bottom: theme.gradientEnd || tok.bg, dark: !!theme.dark });
   }
   function applyFont() {
-    const f = fontOf(prefs.font.family), th = current.theme, s = root.style;
-    s.setProperty('--font-body', f.stack);
-    const head = th.handwritten && prefs.font.handwritten ? '"Caveat", ' + f.stack : th.headingFont || f.stack;
-    s.setProperty('--font-head', head);
+    const f = fontStacks(), s = root.style;
+    s.setProperty('--font-body', f.body);
+    s.setProperty('--font-head', f.heading);
+    s.setProperty('--font-read', f.reading);
+    s.setProperty('--font-mono', f.mono);
     s.setProperty('--fs', Math.min(22, Math.max(14, +prefs.font.size || 17)) + 'px');
     s.setProperty('--lh', Math.min(1.9, Math.max(1.4, +prefs.font.lineHeight || 1.6)));
-    root.dataset.handwritten = th.handwritten && prefs.font.handwritten ? '1' : '';
+    root.dataset.handwritten = prefs.font.heading === 'caveat' ? '1' : '';
   }
   function applyWarm() { root.style.setProperty('--warm', prefs.warm.on ? Math.min(0.4, Math.max(0.05, prefs.warm.strength)) : 0); }
   function applyMotion() { root.dataset.motion = prefs.display.motion; }
@@ -223,20 +265,22 @@
 
   // ───────────────────────── lesson engines (same-origin iframes) ─────────────────────────
   function frameCSS(path) {
-    const { tok, theme } = current, f = fontOf(prefs.font.family).stack, [ar, ag, ab] = T.hexToRgb(tok.accent), scheme = theme.dark ? 'dark' : 'light';
+    const { tok, theme } = current, f = fontStacks(), [ar, ag, ab] = T.hexToRgb(tok.accent), scheme = theme.dark ? 'dark' : 'light';
     const s1 = tok.surfaceSolid, s2 = tok.surface2Solid;
     // tokens the light-theme remapping (lightFixCSS) refers to must exist inside the frame too
     const shared = `:root{--on-accent:${tok.onAccent}!important;--surface-2:${s2}!important;--accent:${tok.accent}!important;}`;
     return shared + frameVars(path, tok, f, s1, s2, ar, ag, ab, scheme);
   }
   function frameVars(path, tok, f, s1, s2, ar, ag, ab, scheme) {
+    // lessons use the Lessons font; their display titles switch only when a heading font is chosen explicitly
+    const display = prefs.font.heading && prefs.font.heading !== 'auto' ? `--font-display:${f.heading}!important;` : '';
     if (/engines\/study\//.test(path)) return `:root{--bg:${tok.bg}!important;--bg-2:${tok.bg}!important;--panel:${s1}!important;--card:${s1}!important;--card-2:${s2}!important;
       --border:${tok.border}!important;--border-2:${tok.border}!important;--text:${tok.text}!important;--text-2:${tok.muted}!important;--muted:${tok.muted}!important;--dim:${tok.muted}!important;
       --chrome:${tok.accent}!important;--chrome-soft:rgba(${ar},${ag},${ab},.14)!important;--subject:${tok.accent}!important;--subject-rgb:${ar},${ag},${ab}!important;
-      --font-ui:${f}!important;color-scheme:${scheme}!important;} body::before{background:none!important;}`;
+      --font-ui:${f.reading}!important;--font-mono:${f.mono}!important;${display}color-scheme:${scheme}!important;} body::before{background:none!important;}`;
     if (/engines\/holograms\//.test(path)) return `:root{--bg:${tok.bg}!important;--card:${s1}!important;--card2:${s2}!important;--line:${tok.border}!important;
       --text:${tok.text}!important;--muted:${tok.muted}!important;--blue:${tok.accent}!important;--cyan:${tok.accent}!important;--acc:${tok.accent}!important;color-scheme:${scheme}!important;}
-      html,body{font-family:${f}!important;}`;
+      html,body{font-family:${f.reading}!important;}`;
     return '';
   }
   // The lesson engines were designed dark-only, and some rules hard-code near-white text or dark
@@ -507,15 +551,28 @@
           <h3>Contrast</h3>
           ${seg('contrast', [['soft', 'Soft'], ['standard', 'Standard'], ['high', 'High']], 'Contrast')}
           <p class="ss-note">Soft lowers glare but always keeps text at 4.5:1 or better (WCAG AA).</p>
-          <div data-only-theme="chalk">${toggle('font.handwritten', 'Handwritten headings', 'Chalkboard theme only')}</div>
+          <div data-only-theme="chalk"><button class="ss-btn" data-font-set="heading:caveat" style="width:100%">Use handwritten chalk headings</button><p class="ss-note">Change it any time under Type → Headings.</p></div>
           <h3>Warm light</h3>
           ${toggle('warm.on', 'Warm light filter', 'Cuts blue light for night study; also covers lessons')}
           ${range('warm.strength', 'Warmth', 0.05, 0.4, 0.01, 'pct')}
         </section>
         <section class="ss-panel" data-panel="type" hidden>
-          <div class="ss-preview"><b>Photosynthesis, step by step</b><p>Light reactions split water and make ATP and NADPH; the Calvin cycle then fixes CO₂ into sugar.</p></div>
-          <h3>Font</h3>
-          <div class="ss-fonts" role="radiogroup" aria-label="Font">${FONTS.map((f) => `<button type="button" role="radio" data-font="${f.id}" style="font-family:${esc(f.stack)}"><span>${esc(f.name)}</span><small>${esc(f.note)}</small></button>`).join('')}</div>
+          <div class="ss-preview" aria-label="Preview">
+            <b>Photosynthesis, step by step</b>
+            <p class="pv-body">Tap a chapter to Listen, Read or open its hologram.</p>
+            <p class="pv-read">Light reactions split water and make ATP and NADPH; the Calvin cycle then fixes CO₂ into sugar.</p>
+            <span class="pv-mono">25:00 · 12 / 107 notes · 64%</span>
+          </div>
+          <h3>Font pairings</h3>
+          <div class="ss-pairings" role="radiogroup" aria-label="Font pairings">${PAIRINGS.map((p) => {
+            const head = p.set.heading === 'auto' ? fontOf(p.set.family).stack : fontOf(p.set.heading).stack;
+            return `<button type="button" role="radio" data-pairing="${p.id}"><b style="font-family:${esc(head)}">${esc(p.name)}</b><small style="font-family:${esc(fontOf(p.set.family).stack)}">${esc(p.note)}</small></button>`;
+          }).join('')}</div>
+          <p class="ss-note">Claude-style mirrors how Claude's chat reads: a warm serif for answers and a soft sans for the interface. Claude's own fonts are proprietary, so it uses open lookalikes (Newsreader and DM Sans).</p>
+          <h3>Font for each part</h3>
+          <div class="ss-seg" role="radiogroup" aria-label="Which part">${FONT_ROLES.map((r) => `<button type="button" role="radio" data-font-role="${r.id}">${r.label}</button>`).join('')}</div>
+          <p class="ss-note" id="ss-role-note"></p>
+          <div class="ss-fonts" id="ss-fontlist" role="radiogroup" aria-label="Font"></div>
           <h3>Size &amp; spacing</h3>
           ${range('font.size', 'Text size', 14, 22, 1, 'px')}
           ${range('font.lineHeight', 'Line height', 1.4, 1.9, 0.05, 'x')}
@@ -592,10 +649,27 @@
     $('#ss-profile', d).addEventListener('change', (e) => switchProfile(e.target.value));
   }
 
+  let fontRole = 'body';
+  const ROLE_NOTES = {
+    heading: 'Headings: page titles, chapter names and section headers.',
+    body: 'Body: menus, buttons, cards and everything else in the app.',
+    reading: 'Lessons: the text inside Listen, Read and Summary, the hologram panels, and your notes.',
+    mono: 'Numbers: the Pomodoro timer, progress figures and the lessons\' counters.',
+  };
+  function renderFontList() {
+    const list = $('#ss-fontlist'); if (!list) return;
+    const role = FONT_ROLES.find((r) => r.id === fontRole);
+    const fonts = FONTS.filter((f) => f.roles.some((x) => role.offers.includes(x)));
+    const autoBtn = role.auto ? `<button type="button" role="radio" data-font-pick="auto"><span>${esc(role.auto)}</span><small>Automatic</small></button>` : '';
+    list.innerHTML = autoBtn + fonts.map((f) => `<button type="button" role="radio" data-font-pick="${f.id}" style="font-family:${esc(f.stack)}"><span>${esc(f.name)}</span><small>${esc(f.kind)} · ${esc(f.note)}</small></button>`).join('');
+    const note = $('#ss-role-note'); if (note) note.textContent = ROLE_NOTES[fontRole];
+  }
+
   function showTab(id) {
     activeTab = id;
     $$('#ss-drawer [data-tab]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === id)));
     $$('#ss-drawer [data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== id; });
+    if (id === 'type') renderFontList();
     if (id === 'wall') loadThumbs();
     if (id === 'profile') { renderProfiles(); refreshDisplay(); }
     $('#ss-drawer .ss-dbody').scrollTop = 0;
@@ -617,7 +691,10 @@
   function onDrawerClick(e) {
     const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.themeId) return setPref('theme', b.dataset.themeId);
-    if (b.dataset.font) return setPref('font.family', b.dataset.font);
+    if (b.dataset.pairing) { const p = PAIRINGS.find((x) => x.id === b.dataset.pairing); Object.assign(prefs.font, p.set); savePrefs(); apply('font'); syncUI(); return; }
+    if (b.dataset.fontRole) { fontRole = b.dataset.fontRole; renderFontList(); syncUI(); return; }
+    if (b.dataset.fontPick) return setPref(FONT_ROLES.find((r) => r.id === fontRole).path, b.dataset.fontPick);
+    if (b.dataset.fontSet) { const [role, id] = b.dataset.fontSet.split(':'); return setPref(FONT_ROLES.find((r) => r.id === role).path, id); }
     if (b.dataset.seg) return setPref(b.dataset.seg, b.dataset.val);
     if (b.dataset.wp !== undefined) return setPref('wallpaper.id', b.dataset.wp || null);
     if (b.dataset.refresh) return setPref('display.refresh', b.dataset.refresh);
@@ -667,7 +744,10 @@
     const d = $('#ss-drawer');
     if (d) {
       $$('.ss-swatch', d).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.themeId === prefs.theme)));
-      $$('[data-font]', d).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.font === prefs.font.family)));
+      $$('[data-pairing]', d).forEach((b) => b.setAttribute('aria-checked', String(pairingActive(PAIRINGS.find((p) => p.id === b.dataset.pairing)))));
+      $$('[data-font-role]', d).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.fontRole === fontRole)));
+      const roleVal = get(FONT_ROLES.find((r) => r.id === fontRole).path) || 'auto';
+      $$('[data-font-pick]', d).forEach((b) => b.setAttribute('aria-checked', String(b.dataset.fontPick === roleVal)));
       $$('[data-seg]', d).forEach((b) => b.setAttribute('aria-checked', String(get(b.dataset.seg) === b.dataset.val)));
       $$('.ss-wp', d).forEach((b) => b.setAttribute('aria-checked', String((b.dataset.wp || null) === prefs.wallpaper.id)));
       $$('[data-only-theme]', d).forEach((el) => { el.hidden = el.dataset.onlyTheme !== prefs.theme; });
