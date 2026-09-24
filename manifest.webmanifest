@@ -1,0 +1,27 @@
+{
+  "name": "HoloStudy LMS — NCERT Class 11 & 12",
+  "short_name": "HoloStudy",
+  "description": "3D holographic learning for NEET & CBSE boards — Physics, Chemistry, Biology with 124 exact holograms, voice notes, reading, summaries and an AI study agent. Works offline.",
+  "id": "/holostudy-lms/",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050a14",
+  "theme_color": "#050a14",
+  "categories": ["education", "productivity"],
+  "lang": "en-IN",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "assets/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Hologram Room", "short_name": "Holograms", "url": "./index.html?go=holograms", "description": "Browse all 124 holograms" },
+    { "name": "Physics", "url": "./index.html?go=physics" },
+    { "name": "Chemistry", "url": "./index.html?go=chemistry" },
+    { "name": "Biology", "url": "./index.html?go=biology" }
+  ]
+}
