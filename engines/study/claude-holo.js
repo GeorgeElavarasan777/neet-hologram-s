@@ -89,28 +89,8 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
     return { title: String(s.title || 'Concept model').slice(0, 80), concept_type: CONCEPTS.includes(s.concept_type) ? s.concept_type : 'relationship', summary: String(s.summary || ''), parts, links, steps, check };
   }
 
-  // ───────────────────────── 3-D layout + wireframe scene ─────────────────────────
-  function layout(spec) {
-    const ps = spec.parts, n = ps.length, pos = new Map(), T = spec.concept_type;
-    if (T === 'cycle') ps.forEach((p, i) => { const a = -Math.PI / 2 + (i / n) * TAU; pos.set(p.id, [1.15 * Math.cos(a), 0.08 * Math.sin(i * 1.7), 1.15 * Math.sin(a)]); });
-    else if (T === 'process' || T === 'timeline') ps.forEach((p, i) => { const u = n === 1 ? 0.5 : i / (n - 1); pos.set(p.id, [-1.35 + 2.7 * u, T === 'timeline' ? 0 : 0.32 * Math.sin(u * Math.PI) - 0.12, T === 'timeline' ? 0 : i % 2 ? 0.28 : -0.28]); });
-    else if (T === 'hierarchy') {
-      const incoming = new Map(ps.map((p) => [p.id, 0])); spec.links.forEach((l) => incoming.set(l.to, incoming.get(l.to) + 1));
-      const level = new Map(); let queue = ps.filter((p) => !incoming.get(p.id)).map((p) => p.id); if (!queue.length) queue = [ps[0].id];
-      queue.forEach((id) => level.set(id, 0));
-      while (queue.length) { const id = queue.shift(); for (const l of spec.links) if (l.from === id && !level.has(l.to)) { level.set(l.to, level.get(id) + 1); queue.push(l.to); } }
-      const maxL = Math.max(0, ...level.values()); ps.forEach((p) => { if (!level.has(p.id)) level.set(p.id, maxL + 1); });
-      const rows = new Map(); ps.forEach((p) => { const L = Math.min(3, level.get(p.id)); if (!rows.has(L)) rows.set(L, []); rows.get(L).push(p.id); });
-      const nRows = rows.size; [...rows.keys()].sort().forEach((L, ri) => { const row = rows.get(L); row.forEach((id, k) => { const u = row.length === 1 ? 0.5 : k / (row.length - 1); pos.set(id, [(-1.25 + 2.5 * u) * Math.min(1, 0.45 + row.length * 0.2), 0.95 - ri * (1.9 / Math.max(1, nRows - 1 || 1)), k % 2 ? 0.2 : -0.2]); }); });
-    } else if (T === 'comparison') {
-      const cols = { a: [], b: [], c: [] }; ps.forEach((p) => cols[p.group].push(p.id));
-      Object.entries({ a: -0.95, b: 0.95, c: 0 }).forEach(([g, x]) => cols[g].forEach((id, k) => pos.set(id, [x, 0.85 - k * (1.7 / Math.max(1, cols[g].length - 1 || 1)), 0])));
-    } else { // structure / relationship / formula: hub and spoke around the core idea
-      pos.set(ps[0].id, [0, 0, 0]);
-      ps.slice(1).forEach((p, i, rest) => { const a = (i / rest.length) * TAU; pos.set(p.id, [1.2 * Math.cos(a), i % 2 ? 0.3 : -0.3, 1.2 * Math.sin(a)]); });
-    }
-    return pos;
-  }
+  // ───────────────────────── 3-D layout (shared with the Hologram Room) + wireframe scene ─────────────────────────
+  const layout = (spec) => ConceptLayout.layout(spec);
 
   function scene(spec) {
     const { V, sphere, ring, octa } = Holo.shapes;
@@ -210,6 +190,27 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
     ],
   };
 
+  // ───────────────────────── reusable pop-up dialog (also used by the "What's inside" tab) ─────────────────────────
+  const Dialog = {
+    open({ title, eyebrow = '', body = '', actions = [], wide = false, onClose }) {
+      this.close(true);
+      const el = document.createElement('div'); el.className = 'cx-modal'; el.id = 'cxDialog'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+      el.innerHTML = `<div class="cx-sheet${wide ? ' cx-wide' : ''}"><div class="cx-row"><div>${eyebrow ? `<div class="cx-eyebrow">${esc(eyebrow)}</div>` : ''}<b class="cx-title">${esc(title)}</b></div><button class="btn sm ghost" data-close aria-label="Close">✕</button></div>
+        <div class="cx-body">${body}</div>${actions.length ? `<div class="cx-actions">${actions.map((a, i) => `<button class="btn sm ${a.primary ? 'primary' : a.ghost ? 'ghost' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>` : ''}</div>`;
+      document.body.appendChild(el);
+      this._onClose = onClose;
+      el.addEventListener('click', (e) => {
+        if (e.target === el || e.target.closest('[data-close]')) return this.close();
+        const b = e.target.closest('[data-i]'); if (b) { const a = actions[+b.dataset.i]; if (a.keepOpen !== true) this.close(); a.onClick && a.onClick(); }
+      });
+      this._esc = (e) => { if (e.key === 'Escape') this.close(); }; document.addEventListener('keydown', this._esc);
+      el.querySelector('[data-close]').focus({ preventScroll: true });
+      return el;
+    },
+    isOpen: () => !!$('#cxDialog'),
+    close(silent) { const el = $('#cxDialog'); if (!el) return; el.remove(); document.removeEventListener('keydown', this._esc); const cb = this._onClose; this._onClose = null; if (!silent && cb) cb(); },
+  };
+
   // ───────────────────────── the Hologram-tab feature ─────────────────────────
   const CX = {
     spec: null, meta: null, mesh: null, on: false, step: -1, playing: false, focus: 'all', figures: true, busy: null,
@@ -232,6 +233,16 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
           back.addEventListener('click', () => { CX.leave(); UI.renderHolo(); }); el.appendChild(back);
         }
       };
+      // tapping a numbered marker on the model opens that part's details (a drag to orbit does not)
+      const cv = $('#holoMain'); let down = null;
+      cv.addEventListener('pointerdown', (e) => { down = { x: e.clientX, y: e.clientY }; });
+      cv.addEventListener('pointerup', (e) => {
+        if (!down || !CX.on || !CX.mesh || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) return;
+        const r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+        let best = null, bd = 26;
+        for (const L of CX.mesh.labels) { if (L._x == null) continue; const d = Math.hypot(L._x - x, L._y - y); if (d < bd) { bd = d; best = L; } }
+        if (best) CX.partDialog(best.n);
+      });
       // switching to a built-in model or another chapter leaves the Claude scene
       const origSet = UI.holoMain.setModel; UI.holoMain.setModel = (id) => { CX.leave(); return origSet(id); };
       // re-rendering the tab keeps an open Claude scene (it would otherwise reset to a built-in model)
@@ -246,7 +257,17 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
     key() { const c = UI.chapter(); return HS.doc && c ? Store.key(HS.doc.id, c.n, this.focus) : null; },
     onChapter() {
       const c = UI.chapter(); const id = HS.doc && c ? HS.doc.id + ':' + c.n : '';
-      if (id !== this._chapterId) { this._chapterId = id; this.focus = 'all'; this.leave(); this.spec = null; this.render(); }
+      if (id !== this._chapterId) { this._chapterId = id; this.focus = this.fig && this.fig._pin === id ? this.focus : 'all'; this.leave(); this.spec = null; this.render(); }
+    },
+    // from the Inside tab: model one figure / table / diagram
+    buildFromFigure(it) {
+      const c = UI.chapter(); if (!c) return;
+      this.fig = it; this.focus = 'fig:' + it.id; this._chapterId = HS.doc.id + ':' + c.n; it._pin = this._chapterId;
+      const saved = Store.get(this.key());
+      if (saved) { this.show(saved.spec, saved.meta); return; }
+      this.leave(); this.spec = null; this.render();
+      const panel = $('#cxPanel'); if (panel) panel.scrollIntoView({ block: 'nearest' });
+      this.build();
     },
     toggle() { if (this.on) { this.leave(); UI.renderHolo(); } else { this.open(); } },
     open() {
@@ -271,7 +292,11 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
       try {
         const { text, pages, focusLabel, truncated } = this.chapterText(c);
         const images = [];
-        if (this.figures && HS.pdf && window.pdfjsLib) {
+        if (this.fig && this.focus === 'fig:' + this.fig.id && window.Inside) {
+          note('Cropping the figure…');
+          const url = await Inside.crop(this.fig, 1100);
+          if (url) images.push({ p: this.fig.page, data: url.split(',')[1] });
+        } else if (this.figures && HS.pdf && window.pdfjsLib) {
           note('Finding figure pages…');
           for (const p of await this.figurePages(pages[0], pages[1], 3)) { if (ctl.signal.aborted) break; images.push({ p, data: await this.pageJpeg(p) }); }
           if (images.length) note(`Attaching ${images.length} figure page${images.length > 1 ? 's' : ''} (p. ${images.map((i) => i.p).join(', ')})`);
@@ -294,7 +319,7 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
         const raw = msg.content.filter((b) => b.type === 'text').map((b) => b.text).join('');
         let parsed; try { parsed = JSON.parse(raw); } catch (e) { throw new Error('Claude\'s answer was not valid JSON. Try building again.'); }
         const spec = validate(parsed);
-        const meta = { model: msg.model || model, focus: focusLabel, figures: images.map((i) => i.p), at: Date.now(), usage: msg.usage, cost: ClaudeAPI.cost(model, msg.usage) };
+        const meta = { model: msg.model || model, focus: focusLabel, figures: images.map((i) => i.p), at: Date.now(), usage: msg.usage, cost: ClaudeAPI.cost(model, msg.usage), docTitle: HS.doc.title, chapter: `Chapter ${c.n} · ${c.title}` };
         if (!Store.set(key, { spec, meta })) toast('Built, but there was no space to save it on this device.', true);
         this.busy = null; this.show(spec, meta); SFX.play('ok');
       } catch (e) {
@@ -318,6 +343,18 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
     chapterText(c) {
       const secs = c.sections || [];
       let blocks = c.blocks, focusLabel = 'Whole chapter', pages = [c.startPage, c.endPage];
+      if (this.fig && this.focus === 'fig:' + this.fig.id) {
+        // one figure: its page (and the next) for context, plus what the scan read inside it
+        const f = this.fig, p = f.page;
+        blocks = c.blocks.filter((b) => b.page >= p - 1 && b.page <= p + 1);
+        const extra = [`## Figure to model: ${Inside.titleOf(f)} (${f.kind}, page ${p})`];
+        if (f.labels && f.labels.length) extra.push(`Labels printed inside it: ${f.labels.join(' · ')}`);
+        if (f.rows && f.rows.length) extra.push('Table rows:\n' + f.rows.slice(0, 40).map((r) => r.join(' | ')).join('\n'));
+        extra.push('Build the hologram about this figure: its parts should be the figure\'s own labelled parts or columns, explained with the surrounding text.');
+        const out0 = extra.join('\n');
+        const rest = blocks.map((b) => (b.kind === 'p' ? `[p.${b.page}] ` : '## ') + b.text).join('\n').slice(0, 40000);
+        return { text: out0 + '\n\n' + rest, pages: [p, p], focusLabel: `Figure: ${Inside.titleOf(f)}`, truncated: false };
+      }
       if (this.focus !== 'all' && secs[+this.focus]) {
         const s = secs[+this.focus], next = secs[+this.focus + 1];
         const i0 = c.blocks.findIndex((b) => b.kind !== 'p' && b.text === s.title);
@@ -373,6 +410,50 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
       this.render();
     },
 
+    // ── part details pop-up (tap a numbered marker or a list item)
+    partDialog(n) {
+      const s = this.spec; if (!s) return; const p = s.parts[n - 1]; if (!p) return;
+      this.stop(); this.highlight(n);
+      const name = (id) => (s.parts.find((q) => q.id === id) || {}).label || id;
+      const out = s.links.filter((l) => l.from === p.id), inn = s.links.filter((l) => l.to === p.id);
+      const step = s.steps.find((st) => st.part === p.id);
+      Dialog.open({
+        eyebrow: `Part ${n} of ${s.parts.length} · ${s.title}`, title: p.label,
+        body: `<p>${esc(p.detail)}</p>
+          ${out.length || inn.length ? `<div class="cx-links">${inn.map((l) => `<span class="cx-link">◀ ${esc(name(l.from))} <i>${esc(l.label || 'leads to')}</i></span>`).join('')}${out.map((l) => `<span class="cx-link"><i>${esc(l.label || 'leads to')}</i> ${esc(name(l.to))} ▶</span>`).join('')}</div>` : ''}
+          ${step ? `<p class="cx-note">Walkthrough: “${esc(step.narration)}”</p>` : ''}`,
+        actions: [
+          { label: '▶ Hear it', primary: true, keepOpen: true, onClick: () => this.say(step ? step.narration : `${p.label}. ${p.detail}`) },
+          { label: 'Ask Claude about it', onClick: () => { UI.setTab('agent'); setTimeout(() => Agent.send(`In "${s.title}", explain "${p.label}" in simple terms and how it connects to ${[...out.map((l) => name(l.to)), ...inn.map((l) => name(l.from))].slice(0, 3).join(', ') || 'the rest of the model'}.`), 250); } },
+          { label: 'Show on the model', ghost: true },
+        ],
+      });
+    },
+    say(text) {
+      if (!('speechSynthesis' in window)) return;
+      speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text), v = Voice.current && Voice.current();
+      if (v) { u.voice = v; u.lang = v.lang; } u.rate = HS.settings.rate || 1; this._utt = u; speechSynthesis.speak(u);
+    },
+
+    // ── full-screen Hologram Room view: the same engine and layout as the 124 built-in holograms
+    openRoom() {
+      if (!this.spec) return;
+      let key = this.key();
+      if (!key || (this.meta && this.meta.sample)) { key = 'hs.claudeholo.sample'; Store.set(key, { spec: this.spec, meta: { docTitle: 'Sample', chapter: 'Built-in sample', sample: true } }); }
+      else if (!Store.get(key)) Store.set(key, { spec: this.spec, meta: this.meta || {} });
+      this.stop();
+      let room = $('#cxRoom');
+      if (!room) {
+        room = document.createElement('div'); room.id = 'cxRoom';
+        room.innerHTML = '<iframe title="Hologram Room" allow="fullscreen"></iframe><button class="btn sm" id="cxRoomClose" aria-label="Back to the chapter">‹ Back to chapter</button>';
+        document.body.appendChild(room);
+        $('#cxRoomClose').addEventListener('click', () => this.closeRoom());
+      }
+      room.querySelector('iframe').src = new URL(`../holograms/index.html?custom=${encodeURIComponent(key)}`, location.href).href;
+      room.hidden = false;
+    },
+    closeRoom() { const r = $('#cxRoom'); if (!r || r.hidden) return false; r.hidden = true; r.querySelector('iframe').src = 'about:blank'; return true; },
+
     // ── narrated walkthrough
     play(from = 0) {
       if (!this.spec) return;
@@ -418,7 +499,8 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
           <p class="cx-sum">${esc(s.summary)}</p>
           ${st ? `<div class="cx-caption" aria-live="polite"><b>${this.step + 1}/${s.steps.length}</b> ${esc(st.narration)}</div>` : ''}
           <div class="cx-actions">
-            <button class="btn sm primary" id="cxPlay">${this.playing ? '■ Stop walkthrough' : '▶ Walkthrough'}</button>
+            <button class="btn sm primary" id="cxRoomBtn">◈ Open in Hologram Room</button>
+            <button class="btn sm" id="cxPlay">${this.playing ? '■ Stop walkthrough' : '▶ Walkthrough'}</button>
             ${s.check.length ? '<button class="btn sm" id="cxCheck">Quick check</button>' : ''}
             ${m && m.sample ? '<button class="btn sm" id="cxBuild">Build one for this chapter</button>' : '<button class="btn sm" id="cxRebuild">Rebuild</button>'}
             <button class="btn sm ghost" id="cxClose">Close</button>
@@ -430,12 +512,13 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
           <div id="cxQuiz"></div>
           <div class="cx-note">${m && m.sample ? 'Sample hologram, built in: no API key used.' : `Made by ${esc(m ? m.model : 'Claude')} from ${esc(m ? m.focus.toLowerCase() : 'this chapter')}${m && m.figures && m.figures.length ? ` + figure pages ${m.figures.join(', ')}` : ''}${cost}. Saved on this device, so reopening it is free.`}</div>
         </div>`;
+        $('#cxRoomBtn').addEventListener('click', () => this.openRoom());
         $('#cxPlay').addEventListener('click', () => (this.playing ? this.stop() : this.play(0)));
         const chk = $('#cxCheck'); if (chk) chk.addEventListener('click', () => this.renderQuiz());
         const rb = $('#cxRebuild'); if (rb) rb.addEventListener('click', () => { Store.del(this.key()); this.build(); });
         const bd = $('#cxBuild'); if (bd) bd.addEventListener('click', () => { this.leave(); this.build(); });
         $('#cxClose').addEventListener('click', () => { this.leave(); UI.renderHolo(); });
-        el.querySelectorAll('.cx-legend li').forEach((li) => li.addEventListener('click', () => { this.stop(); const n = +li.dataset.n; this.highlight(this.mesh.active === n ? 0 : n); }));
+        el.querySelectorAll('.cx-legend li').forEach((li) => li.addEventListener('click', () => this.partDialog(+li.dataset.n)));
         return;
       }
       // idle: offer to build one
@@ -444,7 +527,7 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
         <div class="cx-row"><b class="cx-title">✦ Turn this chapter into a Claude hologram</b></div>
         <p class="cx-sum">Claude reads ${HS.pdf ? 'the chapter and its figure pages' : 'the chapter'} and builds a 3-D concept model with numbered parts, a narrated walkthrough and quick-check questions.</p>
         <div class="cx-form">
-          <label>Focus<select class="sel" id="cxFocus"><option value="all">Whole chapter ${c.n}: ${esc(c.title)}</option>${secs.map((s, i) => `<option value="${i}" ${String(i) === this.focus ? 'selected' : ''}>Section: ${esc(s.title)}</option>`).join('')}</select></label>
+          <label>Focus<select class="sel" id="cxFocus">${this.fig && this.focus === 'fig:' + this.fig.id ? `<option value="fig:${esc(this.fig.id)}" selected>${esc(Inside.titleOf(this.fig))} (p. ${this.fig.page})</option>` : ''}<option value="all">Whole chapter ${c.n}: ${esc(c.title)}</option>${secs.map((s, i) => `<option value="${i}" ${String(i) === this.focus ? 'selected' : ''}>Section: ${esc(s.title)}</option>`).join('')}</select></label>
           ${HS.pdf ? `<label class="cx-check"><input type="checkbox" id="cxFig" ${this.figures ? 'checked' : ''}> Include up to 3 figure pages (better diagrams, costs a little more)</label>` : ''}
         </div>
         <div class="cx-actions">
@@ -618,11 +701,29 @@ Use 3 to 9 parts with short labels. Base every detail, link and narration on the
   .cx-mock-big { font-size: 18px; color: var(--text); }
   .cx-mock-key { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
   @media (prefers-reduced-motion: reduce) { .cx-bar i, .cx-pipe i, .cx-mock-btn.hl { animation: none; } }
+  .cx-sheet.cx-wide { width: min(880px, 100%); }
+  .cx-eyebrow { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .cx-links { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cx-link { font-size: 12.5px; padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border-2); background: var(--card); color: var(--text); }
+  .cx-link i { color: var(--muted); font-style: normal; }
+  #cxRoom { position: fixed; inset: 0; z-index: 180; background: #050a14; }
+  #cxRoom[hidden] { display: none; }
+  #cxRoom iframe { width: 100%; height: 100%; border: 0; display: block; }
+  #cxRoomClose { position: absolute; left: 12px; top: 12px; z-index: 2; background: rgba(7, 11, 20, 0.8); }
   `;
   document.head.appendChild(css);
 
   window.ClaudeSetup = ClaudeSetup;
   window.ClaudeHolo = CX;
+  window.StudyDialog = Dialog;
+  // Android back / Esc inside a lesson: close the top-most layer first (pop-up → Hologram Room → setup guide)
+  window.StudyBack = () => {
+    if (Dialog.isOpen()) { Dialog.close(); return true; }
+    if (CX.closeRoom()) return true;
+    const s = $('#cxSetup'); if (s && !s.hidden) { ClaudeSetup.close(); return true; }
+    if (document.body.classList.contains('wide-view')) { UI.wide(false); return true; }
+    return false;
+  };
   // UI is a top-level const of study.html's script: a global binding, but not a property of window
   const boot = () => { if (typeof UI !== 'undefined' && UI.holoMain) CX.install(); else setTimeout(boot, 200); };
   boot();

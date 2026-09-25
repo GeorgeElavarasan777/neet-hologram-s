@@ -5664,6 +5664,6 @@ reg(Object.assign({}, PH, {
   if (S.panelOpen) { setPanel(true); $('panel').classList.remove('list'); }
   start();
   if (!hash) setTimeout(() => toast(isMobile() ? 'Drag to orbit · pinch to zoom · tap ☰ for figures' : 'Drag to orbit · scroll to zoom · / to search'), 600);
-  window.HOLO = { S, loadFigure, FIGS, renderOnce() { updateCamera(); S.root && S.root.updateMatrixWorld(true); renderer.render(scene, cam); return updateLabels(); }, setExplode(t) { S.explodeT = S.explodeTarget = t; applyExplode(t); if (S.res && S.res.slide) { S.slideT = S.slideTarget = t; S.res.slide(t); } }, setPanel, toggleQuiz, setLabelsVisible };
+  window.HOLO = { S, loadFigure, FIGS, H, C, SUBJECTS, ACC, renderOnce() { updateCamera(); S.root && S.root.updateMatrixWorld(true); renderer.render(scene, cam); return updateLabels(); }, setExplode(t) { S.explodeT = S.explodeTarget = t; applyExplode(t); if (S.res && S.res.slide) { S.slideT = S.slideTarget = t; S.res.slide(t); } }, setPanel, toggleQuiz, setLabelsVisible };
 })();
 

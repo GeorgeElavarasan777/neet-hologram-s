@@ -451,6 +451,49 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
   .model-chips { max-width: 100%; }
   .holo-bottom { flex-direction: column; align-items: stretch; }
 }
+/* ───────── landscape phones / small tablets: panels side by side, compact chrome ───────── */
+@media (orientation: landscape) and (max-height: 560px) {
+  .app { padding: 4px 8px 6px; gap: 5px; }
+  .hdr { padding: 3px 10px; flex-wrap: nowrap; }
+  .hdr h1 { font-size: 14px; max-width: 34vw; }
+  .hdr-tools { flex-wrap: nowrap; gap: 5px; }
+  #hdrHeard, #sfxBtn { display: none; }
+  #voiceSel { max-width: 22vw; }
+  .main { flex-direction: row; gap: 6px; }
+  .rail-left { width: 148px; max-height: none; flex-direction: column; overflow-y: auto; overflow-x: hidden; padding: 4px; gap: 2px; }
+  .rail-left .rail-title { display: none; }
+  .ch-btn { width: 100%; border-bottom: none; border-left: 3px solid transparent; padding: 5px 7px; font-size: 12px; }
+  .ch-btn.active { border-left-color: var(--subject); border-bottom-color: transparent; }
+  .ch-btn .t { white-space: normal; display: -webkit-box; max-width: none; }
+  .ch-btn .b { display: none; }
+  .stage { gap: 5px; }
+  .tabs { padding: 3px; gap: 3px; }
+  .tabs button { padding: 5px 4px; font-size: 12.5px; gap: 4px; }
+  .tabs button .k { display: none; }
+  .pane-head { padding: 6px 12px 6px; }
+  .pane-head h2 { font-size: 15px; }
+  .listen { flex-direction: row; }
+  .notes-list { width: 36%; max-height: none; border-right: 1px solid var(--border); border-bottom: none; }
+  .now-text { font-size: 15px; }
+  .read { flex-direction: row; }
+  .holo-side { width: 34%; max-height: none; border-top: none; border-left: 1px solid var(--border); }
+  .holo-mini-wrap canvas { aspect-ratio: 16 / 10; }
+  .agent { flex-direction: row; }
+  .agent-side { width: 32%; max-height: none; border-top: none; border-left: 1px solid var(--border); }
+  #pane-holo.active { flex-direction: row; }
+  #pane-holo .cx-panel { width: min(40%, 380px); max-height: none; border-top: none; border-left: 1px solid var(--border); }
+  .holo-bottom { flex-direction: row; align-items: flex-end; }
+  .model-chips { max-width: 58%; }
+  #mainCard { width: min(290px, 42%); max-height: 72%; }
+  .holo-toolbar { top: 62px; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+}
+/* wide view: the hologram (or reader) fills the whole screen; the ⤢ button or Back returns */
+body.wide-view .hdr, body.wide-view .rail-left, body.wide-view .tabs { display: none !important; }
+body.wide-view .app { padding: 0; max-width: none; gap: 0; }
+body.wide-view .main, body.wide-view .stage { gap: 0; }
+body.wide-view .pane { border-radius: 0; border: none; }
+.holo-toolbar .btn.on { color: var(--chrome); border-color: rgba(79, 209, 232, 0.5); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
@@ -583,7 +626,8 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
         <button data-tab="read" role="tab">📄 Read <span class="k">2</span></button>
         <button data-tab="holo" role="tab">◎ Hologram <span class="k">3</span></button>
         <button data-tab="summary" role="tab">◆ Summary <span class="k">4</span></button>
-        <button data-tab="agent" role="tab">🤖 Agent <span class="k">5</span></button>
+        <button data-tab="inside" role="tab">▦ Inside <span class="cnt" hidden></span><span class="k">5</span></button>
+        <button data-tab="agent" role="tab">🤖 Agent <span class="k">6</span></button>
       </div>
 
       <section class="pane active" id="pane-listen"></section>
@@ -616,6 +660,7 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
             <button class="btn sm icon" id="holoSpin" title="Auto-rotate">↻</button>
             <button class="btn sm icon" id="holoReset" title="Reset view">⟲</button>
             <button class="btn sm icon" id="holoCardToggle" title="Toggle mini textbook">▤</button>
+            <button class="btn sm icon" id="holoWide" title="Wide view (fill the screen)" aria-pressed="false">⤢</button>
           </div>
           <div class="holo-bottom">
             <div class="model-chips" id="modelChips"></div>
@@ -625,6 +670,8 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
       </section>
 
       <section class="pane" id="pane-summary"></section>
+
+      <section class="pane" id="pane-inside"></section>
 
       <section class="pane" id="pane-agent">
         <div class="agent">
@@ -1143,7 +1190,7 @@ const Ingest = {
     const xml = await body.async('string');
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const paras = Array.from(doc.getElementsByTagName('w:p'));
-    const blocks = [];
+    const blocks = [], blockOf = new Map();
     for (const p of paras) {
       const texts = Array.from(p.getElementsByTagName('w:t')).map((t) => t.textContent).join('');
       const text = texts.replace(/\s+/g, ' ').trim();
@@ -1153,11 +1200,25 @@ const Ingest = {
       let kind = 'p';
       if (/^(Heading1|Title|Heading)$/i.test(style) || CHAPTER_RE.test(text)) kind = 'h1';
       else if (/^Heading[2-4]$/i.test(style)) kind = 'h2';
-      blocks.push({ kind, text, page: 1 });
+      blocks.push({ kind, text, page: 1 }); blockOf.set(p, blocks[blocks.length - 1]);
     }
+    report('Finding tables and pictures', 0.55);
+    // the block just before a table/picture anchors it to a chapter
+    const blockFor = (el) => {
+      for (let n = el; n; n = n.previousSibling) {
+        if (n.nodeType !== 1) continue;
+        const ps = n.nodeName === 'w:p' ? [n] : Array.from(n.getElementsByTagName('w:p'));
+        for (let q = ps.length - 1; q >= 0; q--) if (blockOf.has(ps[q])) return blockOf.get(ps[q]);
+      }
+      return blocks[0];
+    };
+    let found = [];
+    try { found = await Inside.fromDocx(zip, doc, blockFor); } catch (e) { console.warn('docx figures', e); }
     report('Detecting chapters', 0.6);
     const built = buildChapters(paginate(blocks), null, 0);
-    return finishDoc({ id: this.idFor(file), name: file.name, title: file.name.replace(/\.[^.]+$/, ''), kind: 'docx', size: file.size, pageCount: 0 }, built, report, null);
+    const out = await finishDoc({ id: this.idFor(file), name: file.name, title: file.name.replace(/\.[^.]+$/, ''), kind: 'docx', size: file.size, pageCount: 0 }, built, report, null);
+    Inside.attach(out, found); if (out._storage.docSaved) await DB.put('docs', out);
+    return out;
   },
   async fromText(text, name, report, extra = {}) {
     report('Reading text', 0.1);
@@ -1166,7 +1227,9 @@ const Ingest = {
     if (blocks.reduce((a, b) => a + wordCount(b.text), 0) < 30) throw new Error('That is too short to scan — paste at least a few paragraphs.');
     report('Detecting chapters', 0.5);
     const built = buildChapters(blocks, null, 0);
-    return finishDoc({ id: 'd' + hashStr(name + text.length + text.slice(0, 200)), name, title: name, kind: extra.kind || 'text', size: extra.size || text.length, pageCount: 0 }, built, report, null);
+    const out = await finishDoc({ id: 'd' + hashStr(name + text.length + text.slice(0, 200)), name, title: name, kind: extra.kind || 'text', size: extra.size || text.length, pageCount: 0 }, built, report, null);
+    Inside.attach(out, Inside.fromText(text)); if (out._storage.docSaved) await DB.put('docs', out);
+    return out;
   },
 };
 // text docs have no pages: number paragraph groups (~350 words) as virtual pages for the reader
@@ -1808,6 +1871,7 @@ const Holo = (() => {
         for (const L of m.labels) {
           const p = P[L.v]; if (!p) continue;
           const on = m.active === L.n, r = view.mini ? 7 : on ? 12 : 10, dy = view.mini ? 12 : 20, x = p[0], y = p[1] - dy;
+          L._x = x; L._y = y; L._r = r; // screen position, so taps can find the marker
           ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.55)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(x, y + r); ctx.stroke();
           ctx.fillStyle = on ? `rgb(${cr},${cg},${cb})` : 'rgba(8,12,22,0.88)'; ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.95)`; ctx.lineWidth = on ? 2 : 1.4;
           ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
@@ -2135,7 +2199,10 @@ const UI = {
     this.mountHolo();
     this.renderAll();
     Agent.reset();
+    Inside.updateTabBadge();
+    Inside.ensure(doc); // PDFs: find figures / tables / diagrams in the background
     const st = doc._storage;
+    if (st) setTimeout(() => { if (HS.doc === doc) Inside.summary(doc); }, 350); // just scanned: show what was found
     if (st && !st.docSaved) toast(`${doc.chapters.length} chapters ready, but your storage is full, so this document won't stay in the library after you close it.`, true);
     else if (st && !st.fileSaved) toast(`${doc.chapters.length} chapters ready. Storage is nearly full, so page images won't be kept (the text is saved).`, true);
     else toast(`${doc.chapters.length} chapters · ${doc.noteCount} voice notes ready`);
@@ -2143,7 +2210,7 @@ const UI = {
   },
   renderAll() {
     this.renderHeader(); this.renderChapters(); this.renderRail();
-    for (const t of ['listen', 'read', 'holo', 'summary', 'agent']) this.dirty[t] = true;
+    for (const t of ['listen', 'read', 'holo', 'summary', 'inside', 'agent']) this.dirty[t] = true;
     this.setTab(HS.tab || 'listen', true);
   },
 
@@ -2195,15 +2262,21 @@ const UI = {
       <div class="rs-block"><div class="rail-title">Progress</div><div class="rs-card"><div class="line"><span>${heard} of ${d.noteCount}</span><b>${pct(heard, d.noteCount)}%</b></div><div class="bar"><i style="width:${pct(heard, d.noteCount)}%"></i></div><div class="line"><span>Ch ${c.n}: ${chHeard}/${c.notes.length}</span><span style="color:${conf.color}">${conf.level}</span></div></div></div>
       <div class="rs-block"><div class="rail-title">Chapter assets</div><div class="rs-card"><b>Ch ${c.n}</b><span>🖼 ${c.figures} figure refs</span><span>▦ ${c.tables} tables</span><span>✎ ${c.examples} examples</span><span>◇ ${c.terms.length} key terms</span><span>∑ ${c.formulas.length} formulas</span><span>◎ ${c.models.length} holograms</span></div></div>
       <div class="rs-block"><div class="rail-title">Shortcuts</div>
-        <div class="sc"><kbd>Space</kbd> play / pause</div><div class="sc"><kbd>←</kbd><kbd>→</kbd> prev / next</div><div class="sc"><kbd>R</kbd> repeat</div><div class="sc"><kbd>M</kbd> mark heard</div><div class="sc"><kbd>1</kbd>…<kbd>5</kbd> switch tab</div><div class="sc"><kbd>Esc</kbd> stop</div>
+        <div class="sc"><kbd>Space</kbd> play / pause</div><div class="sc"><kbd>←</kbd><kbd>→</kbd> prev / next</div><div class="sc"><kbd>R</kbd> repeat</div><div class="sc"><kbd>M</kbd> mark heard</div><div class="sc"><kbd>1</kbd>…<kbd>6</kbd> switch tab</div><div class="sc"><kbd>Esc</kbd> stop</div>
       </div>`;
   },
+  wide(on) {
+    document.body.classList.toggle('wide-view', on);
+    const b = $('#holoWide'); if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? '⤡' : '⤢'; b.title = on ? 'Leave wide view' : 'Wide view (fill the screen)'; }
+    requestAnimationFrame(() => { if (this.holoMain) this.holoMain.resize(); });
+  },
   setTab(name, force) {
+    if (name !== 'holo' && document.body.classList.contains('wide-view')) this.wide(false);
     if (HS.tab === name && !force) return;
     HS.tab = name;
     $$('#tabs button').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
     $$('.pane').forEach((p) => p.classList.toggle('active', p.id === 'pane-' + name));
-    if (this.dirty[name] || force) { this.dirty[name] = false; ({ listen: () => this.renderListen(), read: () => this.renderRead(), holo: () => this.renderHolo(), summary: () => this.renderSummary(), agent: () => Agent.render() })[name](); }
+    if (this.dirty[name] || force) { this.dirty[name] = false; ({ listen: () => this.renderListen(), read: () => this.renderRead(), holo: () => this.renderHolo(), summary: () => this.renderSummary(), inside: () => Inside.render(), agent: () => Agent.render() })[name](); }
     if (name === 'holo' && this.holoMain) { this.holoMain.resize(); }
   },
   selectChapter(i, opts = {}) {
@@ -2215,7 +2288,7 @@ const UI = {
     HS.progress.lastChapter = i; HS.progress.seenChapters[i] = true; Progress.save();
     this.cardTerm = null;
     this.renderChapters(); this.renderRail();
-    for (const t of ['listen', 'read', 'holo', 'summary', 'agent']) this.dirty[t] = true;
+    for (const t of ['listen', 'read', 'holo', 'summary', 'inside', 'agent']) this.dirty[t] = true;
     this.setTab(HS.tab, true);
   },
 
@@ -2547,6 +2620,10 @@ const UI = {
     $('#holoSpin').addEventListener('click', () => { this.holoMain.spin = !this.holoMain.spin; $('#holoSpin').classList.toggle('on', this.holoMain.spin); });
     $('#holoReset').addEventListener('click', () => this.holoMain.reset());
     $('#holoCardToggle').addEventListener('click', () => { HS.holoCardVisible = !HS.holoCardVisible; $('#mainCard').hidden = !HS.holoCardVisible; });
+    $('#holoWide').addEventListener('click', () => this.wide(!document.body.classList.contains('wide-view')));
+    // rotating the phone: redraw the hologram and the page for the new shape
+    const reflow = () => { clearTimeout(this._orient); this._orient = setTimeout(() => { if (this.holoMain) this.holoMain.resize(); if (this.holoMini && this.holoMini.resize) this.holoMini.resize(); }, 120); };
+    window.addEventListener('orientationchange', reflow); if (screen.orientation) screen.orientation.addEventListener('change', reflow);
     window.addEventListener('resize', () => { if (HS.tab === 'read' && HS.pdf && !$('#app').hidden) { clearTimeout(this._rz); this._rz = setTimeout(() => this.renderPage(HS.page), 200); } });
     document.addEventListener('keydown', (e) => {
       if ($('#app').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2558,7 +2635,7 @@ const UI = {
       else if (k === 'r' || k === 'R') Player.repeat();
       else if (k === 'm' || k === 'M') Player.markHeard();
       else if (k === 'Escape') Player.stop();
-      else if (/^[1-5]$/.test(k)) this.setTab(['listen', 'read', 'holo', 'summary', 'agent'][+k - 1]);
+      else if (/^[1-6]$/.test(k)) this.setTab(['listen', 'read', 'holo', 'summary', 'inside', 'agent'][+k - 1]);
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden && Player.playing && !Player.paused && /Android|iPhone/i.test(navigator.userAgent)) { /* mobile browsers pause speech on hide; keep state honest */ } });
   },
@@ -3019,6 +3096,8 @@ Meiosis is the type of cell division that produces gametes with half the number 
 
 </script>
 <!-- Claude holograms + API-key setup guide (uses the globals above) -->
+<script src="../shared/concept-layout.js"></script>
 <script src="claude-holo.js"></script>
+<script src="inside.js"></script>
 </body>
 </html>

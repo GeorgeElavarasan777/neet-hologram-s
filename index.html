@@ -689,7 +689,11 @@
   // hooks used by Focus Mode and the Android back button
   SS.hooks.resume = ()=>{ const l=lastChapter(); if(!l) return false; openStudy(l.subj,l.cls,l.pack,l.ch,'read'); return true; };
   SS.hooks.back = ()=>{
-    if(!$('#viewer').hidden){ if(history.state&&history.state.viewer) history.back(); else closeViewer(); return true; }
+    if(!$('#viewer').hidden){
+      // let the lesson close its own pop-ups / Hologram Room first
+      try { const w=$('#viewerFrame').contentWindow; if(w.StudyBack && w.StudyBack()) return true; } catch(e){}
+      if(history.state&&history.state.viewer) history.back(); else closeViewer(); return true;
+    }
     if(!$('#drawer').hidden){ if(history.state&&history.state.drawer) history.back(); else closeDrawer(); return true; }
     if(curView!=='dashboard'){ setView('dashboard'); return true; }
     return false;
