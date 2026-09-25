@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HoloStudy · Practice</title>
+<style>
+:root {
+  --bg: #070b14; --panel: #0d1424; --card: #121b2e; --card-2: #172238; --border: #1f2c45; --border-2: #2b3c5c;
+  --text: #d7e2f2; --text-2: #a9b8cf; --muted: #7f90ab; --chrome: #4fd1e8; --chrome-soft: rgba(79, 209, 232, 0.14);
+  --good: #4ade80; --bad: #f87171; --warn: #f5c842; --on-accent: #06121a;
+  --font-ui: 'Segoe UI', system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-display: 'Rajdhani', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'Share Tech Mono', ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--text); font: 15px/1.5 var(--font-ui); overflow: hidden; -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--chrome); outline-offset: 2px; }
+[hidden] { display: none !important; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: .2px; }
+.screen { position: fixed; inset: 0; display: flex; flex-direction: column; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--border-2); background: var(--card); font-weight: 600; min-height: 44px; }
+.btn:hover { background: var(--card-2); }
+.btn.primary { background: var(--chrome); color: var(--on-accent); border-color: transparent; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; }
+.btn.sm { padding: 6px 12px; min-height: 36px; font-size: 13.5px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--card); font-size: 13px; color: var(--text-2); min-height: 36px; }
+.chip.on { color: var(--text); border-color: var(--chip, var(--chrome)); background: var(--card-2); box-shadow: inset 0 0 0 1px var(--chip, var(--chrome)); }
+.chip .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--chip, var(--chrome)); flex-shrink: 0; }
+.chip .acc { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+
+/* ───────── home ───────── */
+#home { overflow-y: auto; }
+.wrap { width: min(980px, 100%); margin: 0 auto; padding: 18px 16px 110px; display: flex; flex-direction: column; gap: 18px; }
+.head h1 { font-size: 26px; }
+.head p { color: var(--text-2); }
+.resume { background: linear-gradient(135deg, var(--card-2), var(--card)); border: 1px solid var(--border-2); border-radius: 14px; padding: 14px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.resume .info { flex: 1; min-width: 220px; }
+.resume b { font-size: 16px; }
+.resume .meta { color: var(--text-2); font-size: 13.5px; }
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.mode { text-align: left; background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; display: flex; flex-direction: column; gap: 6px; min-height: 120px; }
+.mode .ic { font-size: 28px; }
+.mode b { font-size: 17px; font-family: var(--font-display); }
+.mode span { color: var(--text-2); font-size: 13.5px; }
+.mode.on { border-color: var(--chrome); box-shadow: inset 0 0 0 1px var(--chrome); background: var(--card-2); }
+.group { display: flex; flex-direction: column; gap: 8px; }
+.group .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.opts { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; color: var(--text-2); font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--border-2); border-radius: 10px; overflow: hidden; }
+.seg button { padding: 7px 12px; font-size: 13.5px; color: var(--text-2); min-height: 36px; }
+.seg button.on { background: var(--chrome-soft); color: var(--chrome); }
+.startbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, transparent, var(--bg) 35%); display: flex; justify-content: center; gap: 10px; }
+.startbar .btn { min-width: min(360px, 100%); font-size: 16px; }
+.best { color: var(--muted); font-size: 13px; }
+
+/* ───────── tap & answer ───────── */
+#quiz { background: var(--bg); }
+.qbar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+.qbar .prog { flex: 1; height: 6px; border-radius: 6px; background: var(--card); overflow: hidden; }
+.qbar .prog i { display: block; height: 100%; background: var(--chrome); width: 0; transition: width .3s; }
+.qbar .stat { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); white-space: nowrap; }
+.qbody { flex: 1; overflow-y: auto; display: flex; }
+.qcard { width: min(760px, 100%); margin: auto; padding: 20px 16px 28px; display: flex; flex-direction: column; gap: 16px; }
+.qtopic { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.qtopic .tag { font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-2); color: var(--text-2); }
+.qtext { font-size: clamp(19px, 4.6vw, 25px); line-height: 1.4; font-weight: 600; }
+.answers { display: grid; grid-template-columns: 1fr; gap: 10px; }
+.ans { display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 14px; min-height: 56px; border-radius: 12px; border: 1px solid var(--border-2); background: var(--card); font-size: 17px; transition: background .15s, border-color .15s, transform .1s; }
+.ans:not(:disabled):hover { background: var(--card-2); border-color: var(--chrome); }
+.ans:not(:disabled):active { transform: scale(.99); }
+.ans .k { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--bg); font-family: var(--font-mono); font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.ans.right { border-color: var(--good); background: color-mix(in srgb, var(--good) 16%, var(--card)); }
+.ans.right .k { background: var(--good); color: #04110a; }
+.ans.wrong { border-color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+.ans.wrong .k { background: var(--bad); color: #1a0505; }
+.ans:disabled { cursor: default; }
+.feedback { border-radius: 12px; padding: 12px 14px; border: 1px solid var(--border-2); background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+.feedback b { font-size: 16px; }
+.feedback.ok b { color: color-mix(in srgb, var(--good) 50%, var(--text)); } .feedback.no b { color: color-mix(in srgb, var(--bad) 70%, var(--text)); }
+.feedback p { color: var(--text-2); }
+.qnext { display: flex; gap: 10px; flex-wrap: wrap; }
+.qnext .btn.primary { flex: 1; min-width: 160px; }
+.pop { animation: pop .35s ease; }
+@keyframes pop { 0% { transform: scale(.97); opacity: .6; } 100% { transform: none; opacity: 1; } }
+@media (min-width: 640px) { .answers { grid-template-columns: 1fr 1fr; } }
+@media (orientation: landscape) and (max-height: 560px) {
+  .qcard { width: min(1100px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 20px; padding: 12px 16px; align-items: start; }
+  .qcard > .qtopic, .qcard > .qtext { grid-column: 1; }
+  .qcard > .answers, .qcard > .feedback, .qcard > .qnext { grid-column: 2; }
+  .qcard > .answers { grid-row: 1 / span 3; grid-template-columns: 1fr; }
+  .qtext { font-size: 20px; }
+  .ans { min-height: 46px; padding: 8px 12px; font-size: 16px; }
+  .wrap { padding-top: 10px; }
+  .modes { grid-template-columns: 1fr 1fr; }
+  .mode { min-height: 0; padding: 10px 14px; }
+}
+
+/* ───────── shooter ───────── */
+#game { --g-text: #eaf2ff; --g-soft: #dbe7ff; --g-topic: #9fb6ff; --g-hint: #ffd166; --g-help: #7f95c9; --g-panel: rgba(10, 16, 40, 0.78); --g-line: rgba(120, 160, 255, 0.28); background: var(--g-bg, #03040c); color: var(--g-text); }
+#gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: crosshair; }
+.ghud { position: absolute; left: 0; right: 0; top: 0; padding: calc(8px + env(safe-area-inset-top)) 10px 0; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
+.ghud .top { display: flex; align-items: center; gap: 8px; }
+.ghud .top > * { pointer-events: auto; }
+.gstats { display: flex; gap: 12px; font-family: var(--font-mono); font-size: 13px; color: var(--g-soft); flex: 1; flex-wrap: wrap; text-shadow: 0 1px 2px #000; }
+.gstats b { color: var(--g-text); }
+#gShields { display: inline-flex; gap: 5px; vertical-align: middle; }
+#gShields i { width: 11px; height: 11px; border-radius: 50%; background: #3a3f55; display: inline-block; }
+#gShields i.on { background: #7cffb2; box-shadow: 0 0 8px #7cffb2; }
+.gbtn { width: 40px; height: 40px; border-radius: 10px; background: var(--g-panel); border: 1px solid var(--g-line); color: var(--g-text); font-size: 17px; display: grid; place-items: center; }
+.gq { align-self: center; width: min(760px, 100%); background: var(--g-panel); border: 1px solid var(--g-line); border-radius: 12px; padding: 8px 12px; text-align: center; -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+#gTopic { font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--g-topic); }
+#gQuestion { font-size: clamp(15px, 3.8vw, 20px); font-weight: 700; line-height: 1.35; }
+#gHint { margin-top: 4px; font-size: 13px; color: var(--g-hint); }
+.ghelp { position: absolute; left: 0; right: 0; bottom: calc(6px + env(safe-area-inset-bottom)); text-align: center; font-size: 12px; color: var(--g-help); pointer-events: none; }
+.pause { position: absolute; inset: 0; background: rgba(3, 4, 12, 0.72); display: flex; align-items: center; justify-content: center; }
+.pause .box { background: var(--panel); color: var(--text); border: 1px solid var(--border-2); border-radius: 16px; padding: 18px; width: min(360px, calc(100% - 32px)); display: flex; flex-direction: column; gap: 10px; }
+@media (orientation: landscape) and (max-height: 560px) { .gq { width: min(640px, 70%); padding: 5px 10px; } #gQuestion { font-size: 16px; } .ghelp { display: none; } }
+
+/* ───────── pop-up dialog ───────── */
+.modal { position: fixed; inset: 0; z-index: 50; background: rgba(0, 0, 0, 0.6); display: flex; align-items: center; justify-content: center; padding: 14px; }
+.sheet { width: min(620px, 100%); max-height: calc(100dvh - 28px); overflow-y: auto; overflow-x: hidden; background: var(--panel); border: 1px solid var(--border-2); border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+.sheet .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.sheet h2 { font-size: 21px; }
+.sheet .acts { display: flex; flex-wrap: wrap; gap: 8px; position: sticky; bottom: -16px; margin: 0 -18px -16px; padding: 10px 18px 14px; background: linear-gradient(180deg, transparent, var(--panel) 30%); }
+.sheet .acts .btn { flex: 1 1 auto; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+.kpi b { display: block; font-size: 22px; font-family: var(--font-display); }
+.kpi span { font-size: 12px; color: var(--muted); }
+.review { display: flex; flex-direction: column; gap: 8px; }
+.rv { background: var(--card); border: 1px solid var(--border); border-left: 3px solid var(--bad); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+.rv .a { color: color-mix(in srgb, var(--good) 50%, var(--text)); font-weight: 600; }
+.rv .h { color: var(--text-2); font-size: 13px; }
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.barrow { display: grid; grid-template-columns: minmax(0, 1fr) 90px 44px; gap: 8px; align-items: center; font-size: 13px; }
+.barrow .b { height: 6px; border-radius: 6px; background: var(--card); overflow: hidden; }
+.barrow .b i { display: block; height: 100%; background: var(--good); }
+.help-list { display: flex; flex-direction: column; gap: 8px; color: var(--text-2); font-size: 14px; }
+.help-list b { color: var(--text); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- ═════════ home ═════════ -->
+<section class="screen" id="home">
+  <div class="wrap">
+    <div class="head"><div class="eyebrow">Practice</div><h1>Maths MCQ practice</h1><p>Every answer is worked out by the app, so every question is marked correctly. Pick a way to practise and the chapters to cover.</p></div>
+    <div class="resume" id="resumeCard" hidden></div>
+    <div class="modes" role="radiogroup" aria-label="Practice mode">
+      <button class="mode" data-mode="mcq" role="radio"><span class="ic">📝</span><b>Tap &amp; answer</b><span>Calm practice: read, tap an answer, see the working. Rounds of 10 or 20, or endless.</span></button>
+      <button class="mode" data-mode="shooter" role="radio"><span class="ic">🚀</span><b>Space shooter</b><span>Shoot the ship carrying the correct answer. 3 shields; it speeds up every 5 right answers.</span></button>
+    </div>
+    <div class="opts" id="mcqOpts"><span>Questions per round</span><div class="seg" id="lenSeg"><button data-len="10">10</button><button data-len="20">20</button><button data-len="0">Endless</button></div></div>
+    <div id="groups"></div>
+    <div class="opts"><button class="chip" id="soundChip">🔊 Sound on</button><button class="chip" id="helpChip">❔ How to play</button><span class="best" id="bestLine"></span></div>
+  </div>
+  <div class="startbar"><button class="btn primary" id="startBtn">Start</button></div>
+</section>
+
+<!-- ═════════ tap & answer ═════════ -->
+<section class="screen" id="quiz" hidden>
+  <div class="qbar">
+    <button class="btn sm ghost" id="quitQuiz" aria-label="Save and leave">‹ Save &amp; exit</button>
+    <div class="prog" aria-hidden="true"><i id="qProg"></i></div>
+    <span class="stat" id="qCount"></span><span class="stat" id="qScore"></span><span class="stat" id="qStreak"></span>
+  </div>
+  <div class="qbody"><div class="qcard" id="qCard"></div></div>
+</section>
+
+<!-- ═════════ shooter ═════════ -->
+<section class="screen" id="game" hidden>
+  <canvas id="gameCanvas" aria-label="Space shooter game"></canvas>
+  <div class="ghud">
+    <div class="top">
+      <button class="gbtn" id="gPause" aria-label="Pause">❚❚</button>
+      <div class="gstats"><span>SCORE <b id="gScore">0</b></span><span>LV <b id="gLevel">1</b></span><span>🔥 <b id="gStreak">0</b></span><span id="gShields" aria-label="Shields"></span></div>
+      <button class="gbtn" id="gHintBtn" aria-label="Show hint">💡</button>
+    </div>
+    <div class="gq"><div id="gTopic"></div><div id="gQuestion"></div><div id="gHint" hidden></div></div>
+  </div>
+  <div class="ghelp">Drag to steer · hold to fire · 💡 hint (half points)</div>
+  <div class="pause" id="pauseBox" hidden><div class="box"><h2>Paused</h2><p style="color:var(--text-2)">Your game is saved. Continue now or later.</p><button class="btn primary" id="gResume">▶ Resume</button><button class="btn" id="gHelp">❔ How to play</button><button class="btn ghost" id="gQuit">Save &amp; exit</button></div></div>
+</section>
+
+<script src="bank.js"></script>
+<script src="shooter.js"></script>
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const B = window.PracticeBank;
+
+// ───────── saved state: settings, the unfinished round (to continue exactly where you left), stats ─────────
+const KEY = 'hs.practice.v1';
+const Store = {
+  load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } },
+  save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* storage full: keep going in memory */ } },
+};
+const S = Object.assign({ settings: { mode: 'mcq', chapters: ['c10-1', 'c10-2', 'c10-4'], length: 10, sound: true }, session: null, stats: {}, best: { shooter: 0 } }, Store.load());
+
+// ───────── pop-up dialog ─────────
+const Dialog = {
+  open({ title, eyebrow = '', body = '', actions = [], onClose }) {
+    this.close(true);
+    const el = document.createElement('div'); el.className = 'modal'; el.id = 'dlg'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.innerHTML = `<div class="sheet"><div class="hd"><div>${eyebrow ? `<div class="eyebrow">${esc(eyebrow)}</div>` : ''}<h2>${esc(title)}</h2></div><button class="btn sm ghost" data-x aria-label="Close">✕</button></div><div class="bd">${body}</div>${actions.length ? `<div class="acts">${actions.map((a, i) => `<button class="btn ${a.primary ? 'primary' : ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}</div>` : ''}</div>`;
+    document.body.appendChild(el); this._cb = onClose;
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-x]')) return this.close(); const b = e.target.closest('[data-i]'); if (b) { const a = actions[+b.dataset.i]; this.close(true); a.onClick && a.onClick(); } });
+    (el.querySelector('.acts .btn.primary') || el.querySelector('[data-x]')).focus({ preventScroll: true });
+    return el;
+  },
+  isOpen: () => !!$('#dlg'),
+  close(silent) { const el = $('#dlg'); if (!el) return; el.remove(); const cb = this._cb; this._cb = null; if (!silent && cb) cb(); },
+};
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && Dialog.isOpen()) Dialog.close(); });
+
+function help() {
+  Dialog.open({ title: 'How to practise', eyebrow: 'Help', body: `<div class="help-list">
+    <div><b>📝 Tap &amp; answer</b> — read the question, tap an answer (or press 1–4). You see right away if it is right, with the working. Wrong answers are collected so you can practise them again at the end.</div>
+    <div><b>🚀 Space shooter</b> — answer ships fall towards your base. <b>Drag</b> anywhere to steer and <b>hold</b> to fire (keyboard: ← → and Space). Hit the ship with the correct answer. A wrong ship hit, or letting the correct one land, costs a shield; 3 shields per game. Every 5 right answers the level goes up: faster ships and more choices. 💡 shows a hint for half the points.</div>
+    <div><b>Continue later</b> — leave any time: the round is saved on this device and <b>Continue</b> on the practice screen picks it up at the same question.</div>
+    <div><b>Always marked right</b> — questions are generated with the answer calculated, and a checker re-solves thousands of them to make sure there is exactly one correct option.</div></div>`, actions: [{ label: 'Got it', primary: true }] });
+}
+
+// ───────── home ─────────
+const Home = {
+  render() {
+    const st = S.settings;
+    $$('.mode').forEach((b) => { b.classList.toggle('on', b.dataset.mode === st.mode); b.setAttribute('aria-checked', String(b.dataset.mode === st.mode)); });
+    $('#mcqOpts').hidden = st.mode !== 'mcq';
+    $$('#lenSeg button').forEach((b) => b.classList.toggle('on', +b.dataset.len === st.length));
+    $('#groups').innerHTML = B.GROUPS.map((g) => {
+      const ids = g.chapters.map((c) => c.id), on = ids.filter((id) => st.chapters.includes(id)).length;
+      return `<div class="group"><div class="row"><h3>${esc(g.title)}</h3><span class="chips"><button class="chip" data-all="${g.id}">${on === ids.length ? 'Clear' : 'Select all'}</button></span></div>
+        <div class="chips">${g.chapters.map((c) => { const s = S.stats[c.id], acc = s && s.seen ? Math.round((s.correct / s.seen) * 100) + '%' : ''; return `<button class="chip ${st.chapters.includes(c.id) ? 'on' : ''}" style="--chip:${c.color}" data-ch="${c.id}" aria-pressed="${st.chapters.includes(c.id)}"><span class="dot"></span>${c.n ? c.n + '. ' : ''}${esc(c.title)}${acc ? `<span class="acc">${acc}</span>` : ''}</button>`; }).join('')}</div></div>`;
+    }).join('');
+    $('#soundChip').textContent = st.sound ? '🔊 Sound on' : '🔇 Sound off';
+    $('#bestLine').textContent = S.best.shooter ? `Best shooter score: ${S.best.shooter}` : '';
+    const n = st.chapters.length;
+    $('#startBtn').textContent = n ? `Start ${st.mode === 'mcq' ? 'tap & answer' : 'space shooter'} · ${n} chapter${n > 1 ? 's' : ''}` : 'Pick at least one chapter';
+    $('#startBtn').disabled = !n;
+    this.renderResume();
+  },
+  renderResume() {
+    const s = S.session, el = $('#resumeCard');
+    if (!s || s.done) { el.hidden = true; return; }
+    const chs = s.chapters.map((id) => (B.byId(id) || {}).title).filter(Boolean);
+    const where = s.mode === 'mcq' ? `Question ${Math.min(s.i + 1, s.length || s.i + 1)}${s.length ? ` of ${s.length}` : ''} · ${s.correct} right so far` : `Level ${s.game.level} · score ${s.game.score} · ${s.game.shields} shield${s.game.shields === 1 ? '' : 's'} left`;
+    el.innerHTML = `<div class="info"><div class="eyebrow">Continue where you left off</div><b>${s.mode === 'mcq' ? '📝 Tap & answer' : '🚀 Space shooter'}${s.mistakes ? ' · your mistakes' : ''}</b><div class="meta">${esc(where)} · ${esc(chs.slice(0, 2).join(', '))}${chs.length > 2 ? ` +${chs.length - 2}` : ''}</div></div>
+      <button class="btn primary" id="contBtn">▶ Continue</button><button class="btn ghost" id="dropBtn">Start fresh</button>`;
+    el.hidden = false;
+    $('#contBtn').onclick = () => (s.mode === 'mcq' ? Quiz.show() : Game.show());
+    $('#dropBtn').onclick = () => Dialog.open({ title: 'Start fresh?', body: '<p>This round will be closed. Your scores and chapter statistics are kept.</p>', actions: [{ label: 'Start fresh', primary: true, onClick: () => { S.session = null; Store.save(); Home.render(); } }, { label: 'Keep it' }] });
+  },
+  bind() {
+    $('#home').addEventListener('click', (e) => {
+      const m = e.target.closest('[data-mode]'); if (m) { S.settings.mode = m.dataset.mode; Store.save(); return this.render(); }
+      const l = e.target.closest('[data-len]'); if (l) { S.settings.length = +l.dataset.len; Store.save(); return this.render(); }
+      const c = e.target.closest('[data-ch]'); if (c) { const id = c.dataset.ch, a = S.settings.chapters; S.settings.chapters = a.includes(id) ? a.filter((x) => x !== id) : [...a, id]; Store.save(); return this.render(); }
+      const g = e.target.closest('[data-all]'); if (g) { const ids = B.GROUPS.find((x) => x.id === g.dataset.all).chapters.map((x) => x.id), all = ids.every((id) => S.settings.chapters.includes(id)); S.settings.chapters = all ? S.settings.chapters.filter((x) => !ids.includes(x)) : [...new Set([...S.settings.chapters, ...ids])]; Store.save(); return this.render(); }
+    });
+    $('#soundChip').onclick = () => { S.settings.sound = !S.settings.sound; Store.save(); this.render(); };
+    $('#helpChip').onclick = help;
+    $('#startBtn').onclick = () => this.start();
+  },
+  start(opts = {}) {
+    const go = () => {
+      const st = S.settings;
+      S.session = { mode: opts.mode || st.mode, chapters: st.chapters.slice(), length: opts.mistakes ? opts.mistakes.length : st.mode === 'mcq' || opts.mode === 'mcq' ? st.length : 0, i: 0, correct: 0, score: 0, streak: 0, bestStreak: 0, log: [], queue: opts.mistakes || null, mistakes: !!opts.mistakes, current: null, picked: null, startedAt: Date.now() };
+      if (S.session.mode === 'shooter') S.session.game = { score: 0, level: 1, shields: 3 };
+      Store.save();
+      S.session.mode === 'mcq' ? Quiz.show() : Game.show();
+    };
+    if (S.session && !S.session.done && !opts.force) Dialog.open({ title: 'Start a new round?', body: '<p>You have an unfinished round. Starting a new one replaces it.</p>', actions: [{ label: 'Start new round', primary: true, onClick: () => { opts.force = true; go(); } }, { label: 'Continue the old one', onClick: () => (S.session.mode === 'mcq' ? Quiz.show() : Game.show()) }] });
+    else go();
+  },
+};
+
+function show(id) { for (const s of ['home', 'quiz', 'game']) $('#' + s).hidden = s !== id; }
+function tally(chId, ok) { const s = S.stats[chId] || (S.stats[chId] = { seen: 0, correct: 0 }); s.seen++; if (ok) s.correct++; }
+// next question: the mistakes queue first, else a fresh one (never the same text twice in a row)
+function nextQuestion(count) {
+  const s = S.session;
+  if (s.queue && s.queue.length) { const q = s.queue.shift(); return B.build({ q: q.q, a: q.answerText, w: q.wrongs, hint: q.hint, topic: q.topic }, count, { chapter: q.chapter, chapterTitle: q.chapterTitle, color: q.color }); }
+  let q; for (let k = 0; k < 5; k++) { q = B.make(s.chapters, count); if (!s.current || q.q !== s.current.q) break; }
+  return q;
+}
+const asMistake = (q) => ({ q: q.q, answerText: q.options[q.answer], wrongs: q.options.filter((_, i) => i !== q.answer), hint: q.hint, topic: q.topic, chapter: q.chapter, chapterTitle: q.chapterTitle, color: q.color });
+
+// ───────── tap & answer ─────────
+const Quiz = {
+  show() {
+    show('quiz');
+    const s = S.session; if (!s.current) { s.current = nextQuestion(4); s.picked = null; Store.save(); }
+    this.render();
+  },
+  render() {
+    const s = S.session, q = s.current, done = s.picked != null;
+    const total = s.length || null;
+    $('#qProg').style.width = total ? `${Math.round(((s.i + (done ? 1 : 0)) / total) * 100)}%` : `${Math.min(100, (s.i % 10) * 10)}%`;
+    $('#qCount').textContent = total ? `${Math.min(s.i + 1, total)}/${total}` : `#${s.i + 1}`;
+    $('#qScore').textContent = `✓ ${s.correct}`; $('#qStreak').textContent = `🔥 ${s.streak}`;
+    const ok = done && s.picked === q.answer;
+    $('#qCard').innerHTML = `
+      <div class="qtopic"><span class="tag" style="border-color:${q.color};color:color-mix(in srgb, ${q.color} 45%, var(--text))">${esc(q.chapterTitle)}</span><span class="tag">${esc(q.topic)}</span>${q.book ? '<span class="tag">NCERT numbers</span>' : ''}${s.mistakes ? '<span class="tag">Mistake review</span>' : ''}</div>
+      <div class="qtext" id="qText">${esc(q.q)}</div>
+      <div class="answers" role="group" aria-labelledby="qText">${q.options.map((o, i) => `<button class="ans ${done && i === q.answer ? 'right' : ''} ${done && i === s.picked && !ok ? 'wrong' : ''}" data-a="${i}" ${done ? 'disabled' : ''}><span class="k">${'ABCDE'[i]}</span><span>${esc(o)}</span></button>`).join('')}</div>
+      ${done ? `<div class="feedback pop ${ok ? 'ok' : 'no'}" role="status"><b>${ok ? pick(['✓ Correct!', '✓ Well done!', '✓ Exactly right']) : `✗ Not quite — the answer is ${esc(q.options[q.answer])}`}</b><p>${esc(q.hint || '')}</p></div>
+      <div class="qnext"><button class="btn primary" id="nextBtn">${total && s.i + 1 >= total ? 'See results' : 'Next question ›'}</button></div>` : ''}`;
+    $$('.ans', $('#qCard')).forEach((b) => (b.onclick = () => this.answer(+b.dataset.a)));
+    const n = $('#nextBtn'); if (n) { n.onclick = () => this.next(); n.focus({ preventScroll: true }); }
+  },
+  answer(i) {
+    const s = S.session, q = s.current; if (s.picked != null) return;
+    s.picked = i; const ok = i === q.answer;
+    s.log.push({ ...asMistake(q), answerText: q.options[q.answer], picked: q.options[i], ok });
+    if (ok) { s.correct++; s.streak++; s.bestStreak = Math.max(s.bestStreak, s.streak); ShooterSound.init(); ShooterSound.on = S.settings.sound; ShooterSound.ok(); }
+    else { s.streak = 0; ShooterSound.init(); ShooterSound.on = S.settings.sound; ShooterSound.wrong(); }
+    tally(q.chapter, ok); Store.save(); this.render();
+  },
+  next() {
+    const s = S.session; s.i++;
+    if (s.length && s.i >= s.length) return this.finish();
+    s.current = nextQuestion(4); s.picked = null; Store.save(); this.render();
+    $('#qCard').scrollTop = 0;
+  },
+  finish() {
+    const s = S.session; s.done = true; Store.save();
+    results({ title: s.mistakes ? 'Mistakes practised' : 'Round complete', eyebrow: '📝 Tap & answer', right: s.correct, total: s.log.length, bestStreak: s.bestStreak, log: s.log, mode: 'mcq' });
+  },
+  keys(e) {
+    if ($('#quiz').hidden || Dialog.isOpen()) return;
+    const s = S.session; if (!s) return;
+    const k = e.key.toLowerCase(), idx = '1234'.indexOf(k) >= 0 ? '1234'.indexOf(k) : 'abcd'.indexOf(k);
+    if (s.picked == null && idx >= 0 && idx < s.current.options.length) { e.preventDefault(); this.answer(idx); }
+    else if (s.picked != null && (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowRight')) { e.preventDefault(); this.next(); }
+  },
+};
+const pick = (a) => a[Math.floor(Math.random() * a.length)];
+addEventListener('keydown', (e) => Quiz.keys(e));
+$('#quitQuiz').onclick = () => leave();
+
+// ───────── shooter ─────────
+const Game = {
+  show() {
+    show('game'); const s = S.session;
+    $('#pauseBox').hidden = true;
+    Shooter.start({
+      $: (sel) => $(sel), sound: S.settings.sound, state: Object.assign({}, s.game, { question: s.current, log: s.gameLog || [] }),
+      next: (count) => nextQuestion(count),
+      onSave: (st) => { s.game = { score: st.score, level: st.level, shields: st.shields, streak: st.streak, bestStreak: st.bestStreak, correct: st.correct, waves: st.waves, wrongTries: st.wrongTries }; s.current = st.question; s.gameLog = st.log; Store.save(); },
+      onAnswer: (q, ok) => { tally(q.chapter, ok); s.i++; if (ok) s.correct++; Store.save(); },
+      onPause: (on) => { $('#pauseBox').hidden = !on; if (on) $('#gResume').focus({ preventScroll: true }); },
+      onEnd: (r) => {
+        s.done = true; S.best.shooter = Math.max(S.best.shooter || 0, r.score); Store.save();
+        const log = r.log.map((x) => ({ q: x.q, answerText: x.answer, hint: x.hint, topic: x.topic, chapter: x.chapter, chapterTitle: x.chapterTitle, color: x.color, ok: x.result === 'correct', picked: x.result === 'missed' ? (x.wrong.length ? x.wrong.join(', ') + ', then let it land' : 'let it land') : x.wrong.join(', '), wrongs: x.options || x.wrong }));
+        results({ title: 'Game over', eyebrow: '🚀 Space shooter', right: log.filter((x) => x.ok).length, total: r.waves, bestStreak: r.bestStreak, log, mode: 'shooter', score: r.score, level: r.level, record: r.score >= S.best.shooter && r.score > 0 });
+      },
+    });
+  },
+};
+$('#gPause').onclick = () => Shooter.pause(true);
+$('#gResume').onclick = () => Shooter.pause(false);
+$('#gHintBtn').onclick = () => Shooter.toggleHint();
+$('#gHelp').onclick = help;
+$('#gQuit').onclick = () => leave();
+
+// ───────── results pop-up ─────────
+function results(r) {
+  const pct = r.total ? Math.round((r.right / r.total) * 100) : 0;
+  const wrong = r.log.filter((x) => !x.ok);
+  const byCh = new Map(); for (const x of r.log) { const c = byCh.get(x.chapterTitle) || { n: 0, ok: 0 }; c.n++; if (x.ok) c.ok++; byCh.set(x.chapterTitle, c); }
+  const body = `<div class="kpis">${r.mode === 'shooter' ? `<div class="kpi"><b>${r.score}</b><span>score${r.record ? ' · new best!' : ''}</span></div><div class="kpi"><b>${r.level}</b><span>level reached</span></div>` : ''}<div class="kpi"><b>${r.right}/${r.total}</b><span>right first time</span></div><div class="kpi"><b>${pct}%</b><span>accuracy</span></div><div class="kpi"><b>${r.bestStreak}</b><span>best streak</span></div></div>
+    ${byCh.size > 1 ? `<h3 style="margin-top:12px">By chapter</h3><div class="bars">${[...byCh].map(([t, c]) => `<div class="barrow"><span>${esc(t)}</span><span class="b"><i style="width:${Math.round((c.ok / c.n) * 100)}%"></i></span><span>${c.ok}/${c.n}</span></div>`).join('')}</div>` : ''}
+    ${wrong.length ? `<h3 style="margin-top:12px">Review (${wrong.length})</h3><div class="review">${wrong.slice(0, 30).map((x) => `<div class="rv"><div>${esc(x.q)}</div><div>Your answer: ${esc(x.picked || '—')} · <span class="a">Correct: ${esc(x.answerText)}</span></div><div class="h">${esc(x.hint || '')}</div></div>`).join('')}</div>` : `<p style="margin-top:10px">${r.total ? 'No mistakes, brilliant work! 🎉' : 'No questions answered yet.'}</p>`}`;
+  const acts = [];
+  if (wrong.length) acts.push({ label: `Practise my ${wrong.length} mistake${wrong.length > 1 ? 's' : ''}`, primary: true, onClick: () => Home.start({ mode: 'mcq', mistakes: wrong.map((x) => ({ q: x.q, answerText: x.answerText, wrongs: (x.wrongs || []).length ? x.wrongs : [], hint: x.hint, topic: x.topic, chapter: x.chapter, chapterTitle: x.chapterTitle, color: x.color || (B.byId(x.chapter) || {}).color })), force: true }) });
+  acts.push({ label: r.mode === 'shooter' ? '🚀 Play again' : '📝 New round', primary: !wrong.length, onClick: () => Home.start({ mode: r.mode, force: true }) });
+  acts.push({ label: r.mode === 'shooter' ? '📝 Try tap & answer' : '🚀 Try the shooter', onClick: () => Home.start({ mode: r.mode === 'shooter' ? 'mcq' : 'shooter', force: true }) });
+  acts.push({ label: 'Done', onClick: () => leave(true) });
+  Dialog.open({ title: r.title, eyebrow: r.eyebrow, body, actions: acts, onClose: () => leave(true) });
+}
+
+// leave a round: it stays saved (unless finished) and can be continued from the practice screen
+function leave(quiet) {
+  if (Shooter.running) Shooter.stop();
+  if (S.session && S.session.done) S.session = null;
+  Store.save(); show('home'); Home.render();
+  if (!quiet && S.session) toastOnce('Saved. Tap Continue to pick up at the same question.');
+}
+function toastOnce(msg) { const t = document.createElement('div'); t.textContent = msg; t.setAttribute('role', 'status'); t.style.cssText = 'position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--card-2);border:1px solid var(--border-2);padding:10px 14px;border-radius:10px;z-index:60;max-width:calc(100% - 32px);text-align:center'; document.body.appendChild(t); setTimeout(() => t.remove(), 2600); }
+
+// Android Back (called by the hub) and Esc: close the pop-up, pause the game, leave a round, in that order
+window.StudyBack = () => {
+  if (Dialog.isOpen()) { Dialog.close(); return true; }
+  if (!$('#game').hidden) { if (!Shooter.paused) { Shooter.pause(true); return true; } leave(); return true; }
+  if (!$('#quiz').hidden) { leave(); return true; }
+  return false;
+};
+
+// ───────── boot ─────────
+Home.bind();
+const params = new URLSearchParams(location.search);
+if (params.get('mode') === 'mcq' || params.get('mode') === 'shooter') S.settings.mode = params.get('mode');
+Home.render();
+if (S.session && !S.session.done && params.get('continue') === '1') (S.session.mode === 'mcq' ? Quiz.show() : Game.show());
+</script>
+</body>
+</html>

@@ -71,7 +71,10 @@ HoloStudy-LMS/
 │  └─ review.md                NCERT chapter list (words/sections/pages)
 ├─ engines/
 │  ├─ holograms/               the 3-D hologram engine (index.html + holo.js + vendor/three.min.js)
-│  └─ study/                   the study console (study.html + holostudy-demos.js)
+│  ├─ study/                   the study console (study.html + holostudy-demos.js); inside.js finds
+│  │                           figures/tables/diagrams; page-budget.js asks which part of a big PDF to scan
+│  └─ practice/                Maths MCQ practice: tap & answer, and the space shooter
+│                              (bank.js = checked question generators, shooter.js = the game)
 ├─ studyspace/                 themes, fonts, wallpapers, focus mode, timer, sound, notes
 │  ├─ themes.js                the 10 themes as token sets + WCAG contrast maths
 │  ├─ wallpapers.js            on-device wallpaper + theme-art generators
@@ -80,6 +83,8 @@ HoloStudy-LMS/
 │  └─ fonts/                   bundled OFL fonts + licences
 ├─ vendor/                     offline copies of pdf.js, JSZip, Google Fonts CSS (used by the app)
 ├─ tools/check-contrast.js     verifies all themes x contrast modes meet WCAG AA
+├─ tools/test-practice-bank.mjs re-solves every practice question independently (node tools/test-practice-bank.mjs)
+├─ tools/measure-scan.mjs      times a real in-app PDF scan (to tune the page budget)
 ├─ android/                    native Android app (WebView shell, refresh rate, TTS, focus mode)
 └─ assets/icons/               app icons (svg + png, normal + maskable)
 ```
@@ -91,6 +96,17 @@ HoloStudy-LMS/
 - **Re-map chapters ⇄ holograms:** edit and re-run `python data/build_curriculum.py`.
 - **Swap in updated NCERT text:** replace `engines/study/holostudy-demos.js` (rebuilt from the HoloStudy project).
 - The hub reads everything from `data/curriculum.js`, so new chapters/holograms appear automatically.
+
+## Practice (MCQ) and large PDFs
+
+- **Practice** (hub → *Practice MCQs*): NCERT Class 10 Maths (14 chapters) and an algebra drill. Two
+  ways to play: *Tap & answer* (rounds of 10/20/endless, working shown, mistakes replayed) and the
+  *Space shooter* (shoot the ship with the right answer; 3 shields, levels speed up). An unfinished round
+  is saved on the device and **Continue** picks it up at the same question. Every question is generated
+  with its answer calculated; `tools/test-practice-bank.mjs` re-solves 36 000 of them independently.
+- **Large PDFs:** before a big PDF is scanned the app times a few pages on the device and works out a
+  page budget (~30 s of scanning: about 140 pages on a low-end phone, ~320 on a mid-range one, up to 600).
+  Only PDFs over the budget show a pop-up to pick chapters or a page range; each part is saved separately.
 
 ## Notes
 - Everything runs **on-device** — nothing is uploaded. Progress is saved in the browser (localStorage/IndexedDB).

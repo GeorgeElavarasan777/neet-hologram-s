@@ -361,13 +361,15 @@
       if (doc.inside && doc.inside.v === V && doc.inside.done) return;
       if (this.job && this.job.doc === doc && !this.job.done) return;
       if (!doc.inside || doc.inside.v !== V) doc.inside = { v: V, done: false, next: 1, items: [] };
-      const job = this.job = { doc, done: false, p: doc.inside.next || 1, n: HS.pdf.numPages, cancel: false };
+      // a partial scan (large PDF, chosen chapters) only searches its own pages; `next` is a position in that list
+      const list = doc.scanPages && window.PageBudget ? PageBudget.pagesOf(doc.scanPages, HS.pdf.numPages) : null;
+      const job = this.job = { doc, done: false, p: doc.inside.next || 1, n: list ? list.length : HS.pdf.numPages, cancel: false };
       (async () => {
         const pdf = HS.pdf, t0 = performance.now(); let lastSave = performance.now(), lastPaint = 0;
         for (; job.p <= job.n; job.p++) {
           if (job.cancel || HS.doc !== doc || HS.pdf !== pdf) return;
           try {
-            const found = await analysePage(pdf, job.p);
+            const found = await analysePage(pdf, list ? list[job.p - 1] : job.p);
             for (const it of found) { it.ch = this.chapterOf(doc, it); doc.inside.items.push(it); }
           } catch (e) { /* one unreadable page is skipped */ }
           doc.inside.next = job.p + 1;
@@ -537,7 +539,7 @@
     summary(doc) {
       const secs = doc.chapters.reduce((a, c) => a + (c.sections || []).length, 0), terms = doc.chapters.reduce((a, c) => a + c.terms.length, 0), formulas = doc.chapters.reduce((a, c) => a + c.formulas.length, 0);
       const stat = (n, l) => `<div class="in-stat"><b>${n}</b><span>${l}</span></div>`;
-      const body = `<div class="in-stats">${[doc.pageCount ? stat(doc.pageCount, 'pages') : '', stat(doc.chapters.length, 'chapters'), stat(secs, 'sections'), stat(doc.noteCount, 'voice notes'), stat(terms, 'key terms'), stat(formulas, 'formulas')].join('')}</div>
+      const body = `<div class="in-stats">${[doc.pageCount ? stat(doc.scanPages ? `${doc.scanned}/${doc.pageCount}` : doc.pageCount, doc.scanPages ? 'pages scanned' : 'pages') : '', stat(doc.chapters.length, 'chapters'), stat(secs, 'sections'), stat(doc.noteCount, 'voice notes'), stat(terms, 'key terms'), stat(formulas, 'formulas')].join('')}</div>
         <div class="in-sub">Figures, tables & diagrams</div><div id="inSumCounts" class="in-stats"></div><div id="inSumNote" class="note"></div>
         <div class="in-sub">Chapters</div><ol class="in-chlist">${doc.chapters.slice(0, 60).map((c, i) => `<li><button data-ch="${i}"><span>${escH(c.title)}</span><i>${c.notes.length} notes${c.startPage ? ` · p. ${c.startPage}` : ''}</i></button></li>`).join('')}</ol>`;
       this.summaryOpen = true;

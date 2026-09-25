@@ -276,7 +276,7 @@
   function frameVars(path, tok, f, s1, s2, ar, ag, ab, scheme) {
     // lessons use the Lessons font; their display titles switch only when a heading font is chosen explicitly
     const display = prefs.font.heading && prefs.font.heading !== 'auto' ? `--font-display:${f.heading}!important;` : '';
-    if (/engines\/study\//.test(path)) return `:root{--bg:${tok.bg}!important;--bg-2:${tok.bg}!important;--panel:${s1}!important;--card:${s1}!important;--card-2:${s2}!important;
+    if (/engines\/(study|practice)\//.test(path)) return `:root{--bg:${tok.bg}!important;--bg-2:${tok.bg}!important;--panel:${s1}!important;--card:${s1}!important;--card-2:${s2}!important;
       --border:${tok.border}!important;--border-2:${tok.border}!important;--text:${tok.text}!important;--text-2:${tok.muted}!important;--muted:${tok.muted}!important;--dim:${tok.muted}!important;
       --chrome:${tok.accent}!important;--chrome-soft:rgba(${ar},${ag},${ab},.14)!important;--subject:${tok.accent}!important;--subject-rgb:${ar},${ag},${ab}!important;
       --font-ui:${f.reading}!important;--font-mono:${f.mono}!important;${display}color-scheme:${scheme}!important;} body::before{background:none!important;}`;

@@ -270,6 +270,7 @@
             <button class="btn primary" id="resumeBtn">Resume study</button>
             <button class="btn" data-act="focus">Focus Mode</button>
             <button class="btn" id="docsBtn" title="Study your own PDF, Word or text file">Upload a document</button>
+            <button class="btn" id="practiceBtn" title="Maths MCQs: tap & answer, or the space shooter">Practice MCQs</button>
           </div>
         </div>
       </div>
@@ -402,7 +403,7 @@
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>[...r.querySelectorAll(s)];
   const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const ENG = { holo:'engines/holograms/index.html', study:'engines/study/study.html' };
+  const ENG = { holo:'engines/holograms/index.html', study:'engines/study/study.html', practice:'engines/practice/practice.html' };
 
   function glyph(t){
     t=t.toLowerCase();
@@ -669,6 +670,7 @@
   // ---------- your own documents (upload, library, "Open with / Share → HoloStudy") ----------
   const openLibrary = (sub) => openViewer(ENG.study, 'Your documents', sub || 'Upload & library', 'library');
   $('#docsBtn').addEventListener('click', () => openLibrary());
+  $('#practiceBtn').addEventListener('click', () => openViewer(ENG.practice, 'Practice', 'Tap & answer · Space shooter', 'practice'));
   if (IN_APP) SS.native.on('file.incoming', async (m) => {
     if (m.error) { SS.status(m.error); return; }
     try {

@@ -885,12 +885,13 @@ function textToBlocks(text) {
 }
 
 // PDF: group text items into lines, detect headings by font size, strip running headers/footers.
-async function pdfToPages(pdf, report) {
+async function pdfToPages(pdf, report, only) {
   const pages = [];
-  const n = pdf.numPages;
+  const list = only || Array.from({ length: pdf.numPages }, (_, i) => i + 1), n = list.length;
   const lineFreq = new Map();
   const t0 = performance.now();
-  for (let p = 1; p <= n; p++) {
+  for (let k = 1; k <= n; k++) {
+    const p = list[k - 1];
     report && report.check && report.check(); // throws if the user pressed Cancel
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
@@ -923,9 +924,9 @@ async function pdfToPages(pdf, report) {
     for (const l of lines) { l.text = l.text.replace(/\s+/g, ' ').trim(); if (l.text.length <= 40) lineFreq.set(l.text, (lineFreq.get(l.text) || 0) + 1); }
     pages.push({ n: p, lines });
     page.cleanup && page.cleanup();
-    if (report && (p % 5 === 0 || p === n)) {
-      const perPage = (performance.now() - t0) / p, left = Math.round(((n - p) * perPage) / 1000);
-      report(`Reading pages ${p}/${n}${p < n && p >= 10 ? ` · about ${left < 60 ? left + ' s' : Math.round(left / 60) + ' min'} left` : ''}`, 0.05 + 0.55 * (p / n));
+    if (report && (k % 5 === 0 || k === n)) {
+      const perPage = (performance.now() - t0) / k, left = Math.round(((n - k) * perPage) / 1000);
+      report(`Reading pages ${k}/${n}${k < n && k >= 10 ? ` · about ${left < 60 ? left + ' s' : Math.round(left / 60) + ' min'} left` : ''}`, 0.05 + 0.55 * (k / n));
       await nextFrame();
     }
   }
@@ -994,7 +995,7 @@ async function pdfToPages(pdf, report) {
     }
     flush();
   }
-  return { blocks, pageCount: n, bodySize: body };
+  return { blocks, pageCount: pdf.numPages, bodySize: body };
 }
 function joinLines(arr) {
   let out = '';
@@ -1032,6 +1033,16 @@ async function pdfOutlineChapters(pdf) {
     if (list.length === 1 && list[0].sections.length >= 2) return list[0].sections.map((s) => ({ title: s.title, page: s.page, sections: [] }));
     return list.length >= 2 ? list : null;
   } catch { return null; }
+}
+// keep the bookmarked chapters that overlap the chosen pages, each starting at its first chosen page
+function clipOutline(outline, pages, total) {
+  const set = new Set(pages), sorted = [...outline].sort((a, b) => a.page - b.page), out = [];
+  sorted.forEach((c, i) => {
+    const end = i + 1 < sorted.length ? sorted[i + 1].page - 1 : total;
+    let first = null; for (let p = c.page; p <= end; p++) if (set.has(p)) { first = p; break; }
+    if (first != null) out.push(Object.assign({}, c, { page: first, sections: (c.sections || []).filter((x) => set.has(x.page)) }));
+  });
+  return out.length >= 2 ? out : null;
 }
 const cleanTitle = (t) => String(t || '').replace(/\s+/g, ' ').replace(/^[\d.\s]+(?=[A-Za-z])/, '').trim().slice(0, 120) || 'Untitled';
 
@@ -1145,7 +1156,7 @@ const PDF_WORKER = VENDOR('pdf.js/3.11.174/pdf.worker.min.js');
 const Ingest = {
   // name + size only: the same file picked in the file picker and shared from another app (which may
   // report a different modified date) is recognised as one document
-  idFor(file) { return 'd' + hashStr(`v${SCAN_VERSION}|` + file.name + '|' + file.size); },
+  idFor(file, ranges) { return 'd' + hashStr(`v${SCAN_VERSION}|` + file.name + '|' + file.size + (ranges ? '|p' + PageBudget.key(ranges) : '')); },
   async fromFile(file, report) {
     const ext = (file.name.split('.').pop() || '').toLowerCase();
     if (ext === 'pdf' || file.type === 'application/pdf') return this.fromPDF(file, report);
@@ -1166,15 +1177,30 @@ const Ingest = {
       throw new Error('This file could not be opened as a PDF. It may be damaged or not really a PDF.');
     }
     try {
-      const { blocks, pageCount } = await pdfToPages(pdf, report);
+      let ranges = null;
+      if (pdf.numPages > PageBudget.TUNE.min) {
+        report('Measuring this device', 0.03);
+        const plan = PageBudget.plan(pdf, await PageBudget.sample(pdf));
+        if (pdf.numPages > plan.limit) {
+          report(`${pdf.numPages} pages · waiting for your choice`, 0.04);
+          const pickd = await PageBudget.ask(pdf, file, plan, (p, n) => report(`Finding chapters ${p}/${n}`, 0.035));
+          if (!pickd) throw new DOMException('Scan cancelled', 'AbortError');
+          if (pickd.saved) { pdf.destroy(); return pickd.saved; }
+          if (pickd.ranges) ranges = pickd.ranges;
+        }
+      }
+      const pageList = ranges ? PageBudget.pagesOf(ranges, pdf.numPages) : null;
+      const { blocks, pageCount } = await pdfToPages(pdf, report, pageList);
       const words = blocks.reduce((a, b) => a + wordCount(b.text), 0);
-      if (words < 40) throw new Error('This PDF has no readable text layer (it looks scanned). HoloStudy needs text — try a text-based PDF or paste the text.');
+      if (words < 40) throw new Error(ranges ? 'Those pages have no readable text. Pick other pages, or check that the PDF is not a scanned image.' : 'This PDF has no readable text layer (it looks scanned). HoloStudy needs text — try a text-based PDF or paste the text.');
       report('Detecting chapters', 0.64);
-      const outline = await pdfOutlineChapters(pdf);
+      let outline = await pdfOutlineChapters(pdf);
+      if (outline && pageList) outline = clipOutline(outline, pageList, pageCount);
       const meta = await pdf.getMetadata().catch(() => null);
-      const title = (meta && meta.info && meta.info.Title && meta.info.Title.trim().length > 3 && !/untitled|microsoft word|\.pdf$/i.test(meta.info.Title)) ? meta.info.Title.trim() : file.name.replace(/\.[^.]+$/, '');
-      const built = buildChapters(blocks, outline, pageCount);
-      const doc = await finishDoc({ id: this.idFor(file), name: file.name, title, kind: 'pdf', size: file.size, pageCount, hasPdf: true }, built, report, file);
+      let title = (meta && meta.info && meta.info.Title && meta.info.Title.trim().length > 3 && !/untitled|microsoft word|\.pdf$/i.test(meta.info.Title)) ? meta.info.Title.trim() : file.name.replace(/\.[^.]+$/, '');
+      if (ranges) title += ` · p. ${PageBudget.label(ranges)}`;
+      const built = buildChapters(blocks, outline, pageList ? pageList[pageList.length - 1] : pageCount);
+      const doc = await finishDoc({ id: this.idFor(file, ranges), name: file.name, title, kind: 'pdf', size: file.size, pageCount, hasPdf: true, scanPages: ranges, scanned: pageList ? pageList.length : pageCount }, built, report, file);
       Object.defineProperty(doc, '_pdf', { value: pdf, enumerable: false }); // reuse this parse for the reader
       return doc;
     } catch (e) { pdf.destroy(); throw e; }
@@ -2112,7 +2138,7 @@ const UI = {
       const p = pmap[d.id]; const heard = p ? Object.keys(p.heard || {}).length : 0; const s = subjectById(d.subject);
       return `<button class="lib-item" data-open="${esc(d.id)}">
         <b>${esc(d.title || d.name)}</b>
-        <span class="meta"><span style="color:${s.hue}">${esc(s.label)}</span><span>${d.chapters.length} ch</span><span>${d.noteCount} notes</span><span>${d.kind.toUpperCase()}${d.pageCount ? ' · ' + d.pageCount + ' p' : ''}</span></span>
+        <span class="meta"><span style="color:${s.hue}">${esc(s.label)}</span><span>${d.chapters.length} ch</span><span>${d.noteCount} notes</span><span>${d.kind.toUpperCase()}${d.scanPages ? ' · p. ' + esc(PageBudget.label(d.scanPages)) + ' of ' + d.pageCount : d.pageCount ? ' · ' + d.pageCount + ' p' : ''}</span></span>
         <span class="bar"><i style="width:${pct(heard, d.noteCount)}%"></i></span>
         <span class="del" data-del="${esc(d.id)}" title="Remove from library" role="button">✕</span>
       </button>`;
@@ -2155,6 +2181,7 @@ const UI = {
     this.scan.show(file.name);
     try {
       const doc = await Ingest.fromFile(file, this.scan.reporter());
+      if (!doc._storage) { this.scan.hide(); await this.loadDoc(doc); toast(`Opened your saved copy (pages ${PageBudget.label(doc.scanPages)}).`); return; }
       this.scan.step('Scan complete', 1); await sleep(350);
       await this.loadDoc(doc);
       if (doc._storage && doc._storage.docSaved) await this.pruneOlderCopies(doc);
@@ -2166,7 +2193,8 @@ const UI = {
   // older scans of the same file (made by an earlier scanner version) are replaced, not kept as duplicates;
   // their progress is dropped too, since the chapter layout changed and it would no longer line up
   async pruneOlderCopies(doc) {
-    const older = (await DB.all('docs')).filter((d) => d.id !== doc.id && d.name === doc.name && d.size === doc.size);
+    const part = (d) => PageBudget.key(d.scanPages || null);
+    const older = (await DB.all('docs')).filter((d) => d.id !== doc.id && d.name === doc.name && d.size === doc.size && part(d) === part(doc));
     for (const d of older) { await DB.del('docs', d.id); await DB.del('files', d.id); await DB.del('progress', d.id); }
     if (older.length) this.renderLibrary();
   },
@@ -3099,5 +3127,6 @@ Meiosis is the type of cell division that produces gametes with half the number 
 <script src="../shared/concept-layout.js"></script>
 <script src="claude-holo.js"></script>
 <script src="inside.js"></script>
+<script src="page-budget.js"></script>
 </body>
 </html>
