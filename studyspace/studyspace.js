@@ -215,6 +215,8 @@
     const wp = prefs.wallpaper, token = ++wallToken, layer = $('#ss-wall');
     root.dataset.wallTarget = wp.target;
     if (!wp.id) { root.classList.remove('ss-has-wall'); if (layer) layer.classList.remove('on'); wallUrl = null; wallCheck = null; renderWallNote(); return; }
+    // never show the previous wallpaper's verdict while this one is being checked
+    if (!wallCheck || wallCheck.id !== wp.id) { wallCheck = null; renderWallNote(); }
     const url = wp.id === 'custom' ? await customWallpaperUrl() : await W.full(wp.id);
     if (token !== wallToken) return;
     if (!url) { setPref('wallpaper.id', null); return; }
@@ -400,7 +402,14 @@
     save() { store.set(K.pomo(), this.st); },
     len(phase) { const p = prefs.pomodoro; return (phase === 'focus' ? p.focus : phase === 'short' ? p.short : p.long) * 60000; },
     left() { return this.st.running ? Math.max(0, this.st.endsAt - Date.now()) : this.st.remaining; },
-    start() { if (this.st.running) return; Amb.ensure(); this.st.running = true; this.st.endsAt = Date.now() + this.left(); this.save(); this.tick(); awake(); },
+    start() {
+      if (this.st.running) return;
+      Amb.ensure();
+      // read the time left BEFORE marking it running: left() switches to endsAt once running is true
+      this.st.endsAt = Date.now() + this.left();
+      this.st.running = true;
+      this.save(); this.tick(); awake();
+    },
     pause() { if (!this.st.running) return; this.st.remaining = this.left(); this.st.running = false; this.save(); this.tick(); awake(); },
     toggle() { this.st.running ? this.pause() : this.start(); },
     reset() { this.st.running = false; this.st.remaining = this.len(this.st.phase); this.save(); this.tick(); awake(); },
@@ -488,6 +497,7 @@
         const ok = SS.hooks.resume && SS.hooks.resume();
         if (!ok) { status('Open a chapter first. Focus Mode shows only the lesson and your notes.'); return; }
       }
+      closeSettings(); // Focus Mode shows only the lesson; the drawer must not linger underneath (Esc/Back exit focus)
       this.on = true; root.classList.add('ss-focus');
       showNotes(!!prefs.focus.notes);
       if (prefs.focus.immersive) Native.send('window', 'immersive', { on: true });

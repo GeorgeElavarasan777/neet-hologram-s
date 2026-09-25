@@ -36,3 +36,4 @@ android/.idea/
 
 # test-only mock server log
 tools/mock-claude-api.log
+e2e-results/
