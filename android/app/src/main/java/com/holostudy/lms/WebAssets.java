@@ -26,6 +26,11 @@ final class WebAssets {
 
     private final WebViewAssetLoader loader;
     private final AssetManager assets;
+    private SharedFiles shared;
+
+    void setSharedFiles(SharedFiles shared) {
+        this.shared = shared;
+    }
 
     WebAssets(Context context) {
         assets = context.getAssets();
@@ -41,6 +46,7 @@ final class WebAssets {
         if (host == null || path == null) return null;
         switch (host) {
             case HOST:
+                if (shared != null && path.startsWith(SharedFiles.PATH)) return shared.serve(url); // "Open with" documents
                 return loader.shouldInterceptRequest(url);
             case "cdnjs.cloudflare.com":
                 return bundled("vendor/cdnjs" + path, mimeFor(path));

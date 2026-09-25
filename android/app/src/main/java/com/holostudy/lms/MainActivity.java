@@ -51,6 +51,10 @@ public class MainActivity extends Activity {
     private RefreshRate refresh;
     private SharedPreferences prefs;
 
+    private SharedFiles shared;
+    private JSONObject pendingShare; // a document opened from another app before the page was ready
+    private boolean pageReady;
+
     private ValueCallback<Uri[]> fileCallback;
     private String pendingSaveText;
     private JavaScriptReplyProxy pendingSaveReply;
@@ -61,6 +65,8 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences("app", MODE_PRIVATE);
         refresh = new RefreshRate(this);
         assets = new WebAssets(this);
+        shared = new SharedFiles(this);
+        assets.setSharedFiles(shared);
 
         root = new FrameLayout(this);
         goEdgeToEdge();
@@ -74,6 +80,38 @@ public class MainActivity extends Activity {
 
         if (Build.VERSION.SDK_INT >= 33) {
             getOnBackInvokedDispatcher().registerOnBackInvokedCallback(OnBackInvokedDispatcher.PRIORITY_DEFAULT, this::handleBack);
+        }
+        handleIncoming(getIntent());
+    }
+
+    // ───────────────────────── "Open with / Share → HoloStudy" ─────────────────────────
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIncoming(intent);
+    }
+
+    private void handleIncoming(Intent intent) {
+        shared.accept(intent, new SharedFiles.Callback() {
+            @Override public void onReady(JSONObject info) { deliverShare(info); }
+            @Override public void onError(String message) {
+                try { deliverShare(new JSONObject().put("error", message)); } catch (JSONException ignored) { }
+            }
+        });
+    }
+
+    private void deliverShare(JSONObject info) {
+        if (pageReady && bridge != null) bridge.toPage("file", "incoming", info);
+        else pendingShare = info;
+    }
+
+    /** The hub page loaded and registered with the bridge. */
+    void onPageReady() {
+        pageReady = true;
+        if (pendingShare != null && bridge != null) {
+            bridge.toPage("file", "incoming", pendingShare);
+            pendingShare = null;
         }
     }
 
@@ -128,6 +166,7 @@ public class MainActivity extends Activity {
                 root.removeView(view);
                 view.destroy();
                 web = null;
+                pageReady = false;
                 if (bridge != null) bridge.reset();
                 recreate();
                 return true;

@@ -53,7 +53,8 @@ final class NativeBridge implements WebViewCompat.WebMessageListener {
         String ch = m.optString("ch"), cmd = m.optString("cmd");
         switch (ch) {
             case "app":
-                break; // "hello": the main frame registered itself above
+                if ("hello".equals(cmd) && isMainFrame) activity.onPageReady(); // deliver any file shared before the page loaded
+                break;
             case "window":
                 switch (cmd) {
                     case "theme": activity.applySystemBars(m.optString("top"), m.optString("bottom"), m.optBoolean("dark", true)); break;

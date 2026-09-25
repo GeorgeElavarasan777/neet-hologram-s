@@ -551,6 +551,7 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
     <div class="scan-doc"></div>
     <div class="bar"><i id="scanBar"></i></div>
     <div class="scan-lines" id="scanLines"></div>
+    <button class="btn" id="scanCancel" type="button" style="align-self:flex-end">Cancel</button>
   </div>
 </div>
 
@@ -649,7 +650,9 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
 <div id="toast" role="status" aria-live="polite"></div>
 <input type="file" id="fileInput" hidden accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- pdf.js: bundled copy first (works offline, same-origin worker); cdnjs only if the bundle is missing -->
+<script src="../../vendor/cdnjs/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>if (!window.pdfjsLib) document.write('<scr' + 'ipt src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></scr' + 'ipt>');</script>
 <script>
 'use strict';
 // ═══════════════════════════════ 01 · core: state, storage, utils ═══════════════════════════════
@@ -735,8 +738,10 @@ const DB = {
     return new Promise((resolve, reject) => {
       const t = db.transaction(store, mode);
       const req = fn(t.objectStore(store));
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
+      // resolve only once the transaction commits: a write can succeed as a request and still be rolled
+      // back afterwards (e.g. QuotaExceededError when the phone's storage is full)
+      t.oncomplete = () => resolve(req.result);
+      t.onabort = t.onerror = () => reject(t.error || req.error);
     });
   },
   put: (store, obj) => DB.tx(store, 'readwrite', (s) => s.put(obj)).catch(() => null),
@@ -837,7 +842,9 @@ async function pdfToPages(pdf, report) {
   const pages = [];
   const n = pdf.numPages;
   const lineFreq = new Map();
+  const t0 = performance.now();
   for (let p = 1; p <= n; p++) {
+    report && report.check && report.check(); // throws if the user pressed Cancel
     const page = await pdf.getPage(p);
     const tc = await page.getTextContent();
     const lines = []; let cur = null;
@@ -845,7 +852,12 @@ async function pdfToPages(pdf, report) {
       if (!('str' in it)) continue;
       const tr = it.transform; const size = Math.round(Math.hypot(tr[0], tr[1]) * 2) / 2 || 1; const x = tr[4], y = tr[5];
       const s = it.str;
-      if (cur && Math.abs(cur.y - y) < Math.max(cur.size, size) * 0.45) {
+      // same baseline is not enough: a much bigger/smaller glyph (a decorative 85-pt module number, a
+      // superscript footnote mark) or a piece that sits left of the line start is its own line, so it
+      // never glues onto a title ("Comprehensive Income1")
+      const sizeClash = cur && s.trim() && Math.max(cur.size, size) / Math.min(cur.size, size) >= 1.45;
+      const backwards = cur && s.trim() && x < cur.x - size;
+      if (cur && !sizeClash && !backwards && Math.abs(cur.y - y) < Math.max(cur.size, size) * 0.45) {
         const gap = x - cur.xEnd;
         if (s.trim()) {
           // a font change between two word-characters (bold/italic term followed by plain text) usually hides a space
@@ -864,28 +876,63 @@ async function pdfToPages(pdf, report) {
     for (const l of lines) { l.text = l.text.replace(/\s+/g, ' ').trim(); if (l.text.length <= 40) lineFreq.set(l.text, (lineFreq.get(l.text) || 0) + 1); }
     pages.push({ n: p, lines });
     page.cleanup && page.cleanup();
-    if (report && (p % 5 === 0 || p === n)) { report(`Reading pages ${p}/${n}`, 0.05 + 0.55 * (p / n)); await nextFrame(); }
+    if (report && (p % 5 === 0 || p === n)) {
+      const perPage = (performance.now() - t0) / p, left = Math.round(((n - p) * perPage) / 1000);
+      report(`Reading pages ${p}/${n}${p < n && p >= 10 ? ` · about ${left < 60 ? left + ' s' : Math.round(left / 60) + ' min'} left` : ''}`, 0.05 + 0.55 * (p / n));
+      await nextFrame();
+    }
   }
-  // running header/footer removal
+  // running header/footer removal (plus short all-caps labels like "FAR 1" / "MODULE" that repeat)
   const repeated = new Set();
-  for (const [t, c] of lineFreq) if (c >= 3 && c >= n * 0.05) repeated.add(t);
+  for (const [t, c] of lineFreq) if ((c >= 3 && c >= n * 0.05) || (c >= 3 && t.length <= 12 && /^[A-Z0-9][A-Z0-9 .\-–]*$/.test(t))) repeated.add(t);
   // body font size = weighted mode
   const sizeW = new Map();
   for (const pg of pages) for (const l of pg.lines) sizeW.set(l.size, (sizeW.get(l.size) || 0) + l.chars);
   let body = 10, bw = 0; for (const [s, w] of sizeW) if (w > bw) { bw = w; body = s; }
+  // multi-line headings: consecutive same-size lines, larger than body text, stacked tightly at the same
+  // indent are one title ("Accounting Changes" + "and Error Corrections")
+  for (const pg of pages) {
+    const out = [];
+    for (const l of pg.lines) {
+      const prev = out[out.length - 1];
+      if (prev && l.size >= body * 1.2 && Math.abs(prev.size - l.size) <= 0.5 && !repeated.has(prev.text) && !repeated.has(l.text) &&
+          prev.y - l.y > 0 && prev.y - l.y <= l.size * 1.6 && Math.abs(prev.x - l.x) <= l.size &&
+          /[A-Za-z]/.test(prev.text) && /[A-Za-z]/.test(l.text) && !/[.;]$/.test(prev.text) && prev.text.length + l.text.length <= 110) {
+        prev.text = (prev.text + ' ' + l.text).replace(/\s+/g, ' '); prev.chars += l.chars; prev.y = l.y; continue;
+      }
+      out.push(l);
+    }
+    pg.lines = out;
+  }
+  // "Part I, Item 7…" lists and data rows are not headings
+  const dataLike = (t) => /[$€£₹]\s?\d/.test(t) || (t.replace(/[^0-9]/g, '').length / t.length) > 0.3;
+  const chapterishAtBody = (l) => { const m = l.text.match(CHAPTER_RE); return m && !/^[,;]/.test(m[3] || ''); };
   // heading candidates
   const headSizes = new Map();
-  for (const pg of pages) for (const l of pg.lines) {
-    l.junk = repeated.has(l.text) || /^[\d\s.\-–|]+$/.test(l.text) || /^(reprint|rationalised)\s*\d{4}/i.test(l.text) || l.text.length < 2;
-    const short = l.text.length <= 90 && wordCount(l.text) <= 14;
-    l.head = !l.junk && short && /[A-Za-z]{2}/.test(l.text) && !/[.,;:]$/.test(l.text) && (l.size >= body * 1.25 || (CHAPTER_RE.test(l.text) && l.size >= body));
-    if (l.head) headSizes.set(l.size, (headSizes.get(l.size) || 0) + 1);
+  for (const pg of pages) {
+    const bodyChapterLines = pg.lines.filter((l) => l.size < body * 1.25 && CHAPTER_RE.test(l.text)).length; // ≥2 on a page = a list
+    for (const l of pg.lines) {
+      l.junk = repeated.has(l.text) || /^[\d\s.\-–|]+$/.test(l.text) || /^(reprint|rationalised)\s*\d{4}/i.test(l.text) || l.text.length < 2;
+      const short = l.text.length <= 110 && wordCount(l.text) <= 16;
+      l.chapterish = CHAPTER_RE.test(l.text) && chapterishAtBody(l) && (l.size >= body * 1.25 || bodyChapterLines < 2);
+      l.head = !l.junk && short && /[A-Za-z]{2}/.test(l.text) && !/[.,;:]$/.test(l.text) && !/^[,;a-z]/.test(l.text) && !dataLike(l.text) &&
+        (l.size >= body * 1.25 || (l.chapterish && l.size >= body));
+      if (l.head) headSizes.set(l.size, (headSizes.get(l.size) || 0) + 1);
+    }
   }
-  // choose chapter tier: the largest size used between 2 and 90 times; everything smaller is a section
+  // choose chapter tier: the largest size used between 2 and 90 times; everything smaller is a section.
+  // Titles set in slightly different sizes (long titles are shrunk to fit: 30 → 23 pt in one book) are
+  // the same tier: walk down in steps of ≤10%, but never below 72% of the top size, so a real section
+  // tier (usually ≥15% smaller than the chapter tier) is never swallowed.
   const tiers = [...headSizes.entries()].sort((a, b) => b[0] - a[0]);
   let h1Size = null;
   for (const [s, c] of tiers) if (c >= 2 && c <= 90) { h1Size = s; break; }
   if (h1Size == null && tiers.length) h1Size = tiers[0][0];
+  let h1Min = h1Size;
+  if (h1Size != null) for (const [s] of tiers) {
+    if (s >= h1Size) continue;
+    if (s >= h1Min * 0.9 && s >= h1Size * 0.72) h1Min = s; else break;
+  }
   const blocks = [];
   for (const pg of pages) {
     let para = [];
@@ -894,7 +941,7 @@ async function pdfToPages(pdf, report) {
       if (l.junk) continue;
       if (l.head) {
         flush();
-        const isChapter = l.size >= h1Size * 0.98 || CHAPTER_RE.test(l.text);
+        const isChapter = l.size >= h1Min * 0.98 || l.chapterish;
         blocks.push({ kind: isChapter ? 'h1' : 'h2', page: pg.n, text: l.text, size: l.size });
       } else para.push(l.text);
     }
@@ -1043,36 +1090,57 @@ function buildNotes(ch) {
 }
 
 // ───────── public ingest API ─────────
+// Bump when the scanner improves: a re-upload then rescans instead of reopening an older, worse scan.
+const SCAN_VERSION = 2;
+// pdf.js / JSZip are bundled in vendor/ (same origin → a real worker thread, and fully offline); CDN is the fallback.
+const VENDOR = (p) => new URL('../../vendor/cdnjs/ajax/libs/' + p, location.href).href;
+const PDF_WORKER = VENDOR('pdf.js/3.11.174/pdf.worker.min.js');
 const Ingest = {
+  // name + size only: the same file picked in the file picker and shared from another app (which may
+  // report a different modified date) is recognised as one document
+  idFor(file) { return 'd' + hashStr(`v${SCAN_VERSION}|` + file.name + '|' + file.size); },
   async fromFile(file, report) {
     const ext = (file.name.split('.').pop() || '').toLowerCase();
     if (ext === 'pdf' || file.type === 'application/pdf') return this.fromPDF(file, report);
     if (ext === 'docx') return this.fromDocx(file, report);
+    if (!/^(txt|md|markdown|text)$/.test(ext) && !/^text\//.test(file.type)) throw new Error(`“${file.name}” is not a supported file. Use a PDF, DOCX, TXT or Markdown file.`);
     const text = await file.text();
     return this.fromText(text, file.name.replace(/\.[^.]+$/, ''), report, { kind: ext === 'md' || ext === 'markdown' ? 'md' : 'txt', size: file.size });
   },
   async fromPDF(file, report) {
-    if (!window.pdfjsLib) throw new Error('The PDF engine did not load. Check your internet connection once and reload — it is fetched from cdnjs.');
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    if (!window.pdfjsLib) throw new Error('The PDF engine did not load. Reload the page and try again.');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
     report('Opening PDF', 0.02);
     const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    const { blocks, pageCount } = await pdfToPages(pdf, report);
-    const words = blocks.reduce((a, b) => a + wordCount(b.text), 0);
-    if (words < 40) throw new Error('This PDF has no readable text layer (it looks scanned). HoloStudy needs text — try a text-based PDF or paste the text.');
-    report('Detecting chapters', 0.64);
-    const outline = await pdfOutlineChapters(pdf);
-    const meta = await pdf.getMetadata().catch(() => null);
-    const title = (meta && meta.info && meta.info.Title && meta.info.Title.trim().length > 3 && !/untitled|microsoft word|\.pdf$/i.test(meta.info.Title)) ? meta.info.Title.trim() : file.name.replace(/\.[^.]+$/, '');
-    const built = buildChapters(blocks, outline, pageCount);
-    return finishDoc({ id: 'd' + hashStr(file.name + file.size + file.lastModified), name: file.name, title, kind: 'pdf', size: file.size, pageCount, hasPdf: true }, built, report, file);
+    let pdf;
+    try { pdf = await pdfjsLib.getDocument({ data: buf }).promise; }
+    catch (e) {
+      if (e && e.name === 'PasswordException') throw new Error('This PDF is password-protected. Remove the password (or print it to a new PDF) and upload it again.');
+      throw new Error('This file could not be opened as a PDF. It may be damaged or not really a PDF.');
+    }
+    try {
+      const { blocks, pageCount } = await pdfToPages(pdf, report);
+      const words = blocks.reduce((a, b) => a + wordCount(b.text), 0);
+      if (words < 40) throw new Error('This PDF has no readable text layer (it looks scanned). HoloStudy needs text — try a text-based PDF or paste the text.');
+      report('Detecting chapters', 0.64);
+      const outline = await pdfOutlineChapters(pdf);
+      const meta = await pdf.getMetadata().catch(() => null);
+      const title = (meta && meta.info && meta.info.Title && meta.info.Title.trim().length > 3 && !/untitled|microsoft word|\.pdf$/i.test(meta.info.Title)) ? meta.info.Title.trim() : file.name.replace(/\.[^.]+$/, '');
+      const built = buildChapters(blocks, outline, pageCount);
+      const doc = await finishDoc({ id: this.idFor(file), name: file.name, title, kind: 'pdf', size: file.size, pageCount, hasPdf: true }, built, report, file);
+      Object.defineProperty(doc, '_pdf', { value: pdf, enumerable: false }); // reuse this parse for the reader
+      return doc;
+    } catch (e) { pdf.destroy(); throw e; }
   },
   async fromDocx(file, report) {
     report('Loading DOCX reader', 0.03);
-    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
-    if (!window.JSZip) throw new Error('The DOCX reader could not load (needs internet once). You can also paste the text instead.');
-    const zip = await JSZip.loadAsync(await file.arrayBuffer());
-    const xml = await zip.file('word/document.xml').async('string');
+    await loadScript(VENDOR('jszip/3.10.1/jszip.min.js')).catch(() => loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'));
+    if (!window.JSZip) throw new Error('The DOCX reader could not load. You can paste the text instead.');
+    let zip;
+    try { zip = await JSZip.loadAsync(await file.arrayBuffer()); } catch (e) { throw new Error('This file could not be opened as a Word document. It may be damaged, or an old .doc file — save it as .docx and try again.'); }
+    const body = zip.file('word/document.xml');
+    if (!body) throw new Error('This Word file has no readable body text.');
+    const xml = await body.async('string');
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const paras = Array.from(doc.getElementsByTagName('w:p'));
     const blocks = [];
@@ -1089,7 +1157,7 @@ const Ingest = {
     }
     report('Detecting chapters', 0.6);
     const built = buildChapters(paginate(blocks), null, 0);
-    return finishDoc({ id: 'd' + hashStr(file.name + file.size + file.lastModified), name: file.name, title: file.name.replace(/\.[^.]+$/, ''), kind: 'docx', size: file.size, pageCount: 0 }, built, report, null);
+    return finishDoc({ id: this.idFor(file), name: file.name, title: file.name.replace(/\.[^.]+$/, ''), kind: 'docx', size: file.size, pageCount: 0 }, built, report, null);
   },
   async fromText(text, name, report, extra = {}) {
     report('Reading text', 0.1);
@@ -1143,8 +1211,10 @@ async function finishDoc(meta, built, report, file) {
     noteCount: chapters.reduce((a, c) => a + c.notes.length, 0),
   });
   report('Compiling holograms', 0.97);
-  await DB.put('docs', doc);
-  if (file) await DB.put('files', { id: doc.id, blob: file });
+  // storage can be full on a phone: the document still opens, it just may not stay in the library
+  const docSaved = (await DB.put('docs', doc)) != null;
+  const fileSaved = file ? (await DB.put('files', { id: doc.id, blob: file })) != null : true;
+  Object.defineProperty(doc, '_storage', { value: { docSaved, fileSaved }, enumerable: false });
   return doc;
 }
 function countRefs(text, re) { const s = new Set(); let m; while ((m = re.exec(text))) s.add(m[1]); return s.size; }
@@ -1964,25 +2034,58 @@ const UI = {
 
   // ───────── scan overlay ─────────
   scan: {
-    show(name) { $('#scanOverlay').hidden = false; $('#scanLines').innerHTML = ''; $('#scanBar').style.width = '2%'; this.step(`Target acquired: ${name}`, 0.02); SFX.play('boot'); },
+    ctl: null,
+    show(name) {
+      this.ctl = { cancelled: false };
+      $('#scanOverlay').hidden = false; $('#scanLines').innerHTML = ''; $('#scanBar').style.width = '2%';
+      $('#scanCancel').disabled = false; $('#scanCancel').textContent = 'Cancel';
+      this.step(`Target acquired: ${name}`, 0.02); SFX.play('boot');
+    },
     step(label, p) { const box = $('#scanLines'); const last = box.lastElementChild; if (last) last.classList.add('done'); const d = document.createElement('div'); d.textContent = label; box.appendChild(d); while (box.children.length > 7) box.removeChild(box.firstChild); $('#scanBar').style.width = Math.round(p * 100) + '%'; },
-    hide() { $('#scanOverlay').hidden = true; },
+    hide() { $('#scanOverlay').hidden = true; this.ctl = null; },
+    cancel() { if (this.ctl) { this.ctl.cancelled = true; $('#scanCancel').disabled = true; $('#scanCancel').textContent = 'Cancelling…'; } },
+    // progress callback handed to the scanner; throws AbortError once Cancel is pressed
+    reporter() {
+      const ctl = this.ctl, check = () => { if (ctl.cancelled) throw new DOMException('Scan cancelled', 'AbortError'); };
+      const report = (l, p) => { check(); this.step(l, p); };
+      report.check = check;
+      return report;
+    },
   },
   async openFile(file) {
     if (!file) return;
+    if (this.scan.ctl) return toast('A document is already being scanned. Wait for it or press Cancel first.', true);
     if (file.size > 120 * 1024 * 1024) return toast('That file is over 120 MB — try a smaller PDF.', true);
+    if (file.size === 0) return toast('That file is empty.', true);
+    // already scanned with this scanner version? open the saved copy instantly instead of rescanning
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf' || ext === 'docx' || file.type === 'application/pdf') {
+      const saved = await DB.get('docs', Ingest.idFor(file));
+      if (saved) { await this.loadDoc(saved); await this.pruneOlderCopies(saved); toast(`“${saved.title}” is already in your library, so your saved copy and progress were opened.`); return; }
+    }
     this.scan.show(file.name);
     try {
-      const doc = await Ingest.fromFile(file, (l, p) => this.scan.step(l, p));
+      const doc = await Ingest.fromFile(file, this.scan.reporter());
       this.scan.step('Scan complete', 1); await sleep(350);
       await this.loadDoc(doc);
-    } catch (e) { console.error(e); toast(e.message || 'Could not read that file.', true); }
-    finally { this.scan.hide(); }
+      if (doc._storage && doc._storage.docSaved) await this.pruneOlderCopies(doc);
+    } catch (e) {
+      if (e && e.name === 'AbortError') toast('Scan cancelled. Nothing was saved.');
+      else { console.error(e); toast(e.message || 'Could not read that file.', true); }
+    } finally { this.scan.hide(); }
+  },
+  // older scans of the same file (made by an earlier scanner version) are replaced, not kept as duplicates;
+  // their progress is dropped too, since the chapter layout changed and it would no longer line up
+  async pruneOlderCopies(doc) {
+    const older = (await DB.all('docs')).filter((d) => d.id !== doc.id && d.name === doc.name && d.size === doc.size);
+    for (const d of older) { await DB.del('docs', d.id); await DB.del('files', d.id); await DB.del('progress', d.id); }
+    if (older.length) this.renderLibrary();
   },
   async openText(text, name) {
+    if (this.scan.ctl) return toast('A document is already being scanned. Wait for it or press Cancel first.', true);
     this.scan.show(name);
-    try { const doc = await Ingest.fromText(text, name, (l, p) => this.scan.step(l, p)); this.scan.step('Scan complete', 1); await sleep(300); await this.loadDoc(doc); }
-    catch (e) { console.error(e); toast(e.message || 'Could not scan that text.', true); }
+    try { const doc = await Ingest.fromText(text, name, this.scan.reporter()); this.scan.step('Scan complete', 1); await sleep(300); await this.loadDoc(doc); }
+    catch (e) { if (e && e.name === 'AbortError') toast('Scan cancelled. Nothing was saved.'); else { console.error(e); toast(e.message || 'Could not scan that text.', true); } }
     finally { this.scan.hide(); }
   },
   async openStored(id) {
@@ -1992,20 +2095,25 @@ const UI = {
   },
   async loadDoc(doc) {
     Player.stop();
+    if (HS.pdf && HS.pdf !== doc._pdf) { try { HS.pdf.destroy(); } catch (e) {} } // free the previous PDF's memory
     HS.doc = doc; HS.pdf = null;
     await Progress.load(doc.id);
     HS.chapterIdx = clamp(HS.progress.lastChapter || 0, 0, doc.chapters.length - 1);
     HS.page = doc.chapters[HS.chapterIdx].startPage;
     Player.idx = 0;
     applySubjectTheme(doc.subject);
-    if (doc.hasPdf && window.pdfjsLib) {
-      try { const f = await DB.get('files', doc.id); if (f && f.blob) { pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; HS.pdf = await pdfjsLib.getDocument({ data: await f.blob.arrayBuffer() }).promise; } } catch (e) { console.warn('pdf reopen failed', e); }
+    if (doc._pdf) HS.pdf = doc._pdf; // just scanned: reuse the parsed PDF instead of parsing it a second time
+    else if (doc.hasPdf && window.pdfjsLib) {
+      try { const f = await DB.get('files', doc.id); if (f && f.blob) { pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER; HS.pdf = await pdfjsLib.getDocument({ data: await f.blob.arrayBuffer() }).promise; } } catch (e) { console.warn('pdf reopen failed', e); }
     }
     this.showApp();
     this.mountHolo();
     this.renderAll();
     Agent.reset();
-    toast(`${doc.chapters.length} chapters · ${doc.noteCount} voice notes ready`);
+    const st = doc._storage;
+    if (st && !st.docSaved) toast(`${doc.chapters.length} chapters ready, but your storage is full, so this document won't stay in the library after you close it.`, true);
+    else if (st && !st.fileSaved) toast(`${doc.chapters.length} chapters ready. Storage is nearly full, so page images won't be kept (the text is saved).`, true);
+    else toast(`${doc.chapters.length} chapters · ${doc.noteCount} voice notes ready`);
     SFX.play('ok');
   },
   renderAll() {
@@ -2380,6 +2488,12 @@ const UI = {
   // ───────── events ─────────
   bind() {
     $('#btnUpload').addEventListener('click', () => $('#fileInput').click());
+    $('#scanCancel').addEventListener('click', () => this.scan.cancel());
+    // a file handed over by the hub page (Android "Open with / Share → HoloStudy"); same-origin only
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || !e.data || e.data.type !== 'ss-open-file' || !(e.data.file instanceof Blob)) return;
+      this.openFile(e.data.file);
+    });
     $('#fileInput').addEventListener('change', (e) => { const f = e.target.files[0]; e.target.value = ''; this.openFile(f); });
     $('#btnPaste').addEventListener('click', () => { $('#pasteBox').classList.add('open'); $('#pasteText').focus(); });
     $('#btnPasteCancel').addEventListener('click', () => $('#pasteBox').classList.remove('open'));

@@ -269,6 +269,7 @@
           <div class="cta">
             <button class="btn primary" id="resumeBtn">Resume study</button>
             <button class="btn" data-act="focus">Focus Mode</button>
+            <button class="btn" id="docsBtn" title="Study your own PDF, Word or text file">Upload a document</button>
           </div>
         </div>
       </div>
@@ -662,6 +663,26 @@
   window.addEventListener('popstate',()=>{
     if(!$('#viewer').hidden){ closeViewer(); return; }
     if(!$('#drawer').hidden){ closeDrawer(); return; }
+  });
+
+  // ---------- your own documents (upload, library, "Open with / Share → HoloStudy") ----------
+  const openLibrary = (sub) => openViewer(ENG.study, 'Your documents', sub || 'Upload & library', 'library');
+  $('#docsBtn').addEventListener('click', () => openLibrary());
+  if (IN_APP) SS.native.on('file.incoming', async (m) => {
+    if (m.error) { SS.status(m.error); return; }
+    try {
+      const blob = await (await fetch(m.url)).blob();
+      // lastModified 0: sharing the same file again is recognised and reopens the saved copy
+      const file = new File([blob], m.name, { type: m.type || blob.type, lastModified: 0 });
+      if (SS.focus.on) SS.focus.exit();
+      if (!$('#drawer').hidden) closeDrawer();
+      const f = $('#viewerFrame');
+      const send = () => f.contentWindow.postMessage({ type: 'ss-open-file', file }, location.origin);
+      let onStudy = false;
+      try { onStudy = !$('#viewer').hidden && /engines\/study\/study\.html$/.test(f.contentWindow.location.pathname); } catch (e) {}
+      if (onStudy) send();
+      else { f.addEventListener('load', send, { once: true }); openLibrary(m.name); }
+    } catch (e) { SS.status('That shared file could not be opened.'); }
   });
 
   // hooks used by Focus Mode and the Android back button
