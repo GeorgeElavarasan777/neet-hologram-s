@@ -33,3 +33,6 @@ android/.idea/
 *.apk
 *.aab
 *.iml
+
+# test-only mock server log
+tools/mock-claude-api.log

@@ -15,6 +15,9 @@ It all sits inside a calm, distraction-free **study space**:
 - **Focus Mode** (lesson + notes only), **Pomodoro timer**, **ambient sound** (rain / brown noise / silence, never autoplays), **warm light** filter, thin progress bars. No pop-ups and no badges.
 - **Profiles**: every setting, note and progress bar is saved per profile in one JSON preferences object on the device.
 
+- **Claude holograms**: in any chapter's Hologram tab, **✦ Claude hologram** sends the chapter (or one section, plus up to 3 figure pages from the PDF) to Claude. Claude returns a structured concept model (JSON schema): a teaching pattern (cycle, process, hierarchy, comparison…), 3–9 numbered parts, links, a narrated walkthrough and quick-check questions. The app lays it out in 3-D, narrates it with the device's voice, and saves it so reopening is free. It uses the student's own Claude API key, and a **setup guide popup** walks them through getting one. A built-in sample works with no key. Everything is in `engines/study/claude-holo.js` and uses the official Anthropic TypeScript SDK, bundled in `vendor/anthropic-sdk/` (refresh it with `node tools/vendor-anthropic-sdk.mjs`). Default model is `claude-opus-5`, with adaptive thinking and server-side refusal fallbacks.
+- **Testing without API credit:** `node tools/mock-claude-api.mjs` runs a local stand-in for the Messages API (streaming format, logs each request). Point a **debug** build at it with `adb reverse tcp:8787 tcp:8787` and `HS.settings.apiBase = 'http://127.0.0.1:8787'`. Only debug builds allow that loopback HTTP; release builds stay HTTPS-only.
+
 ---
 
 ## Android app (recommended on phones)

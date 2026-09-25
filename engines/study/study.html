@@ -1746,6 +1746,8 @@ const Holo = (() => {
       view.w = w; view.h = h; view.dpr = dpr;
     };
     view.setModel = (id) => { const m = getMesh(id); view.mesh = m; view.born = performance.now(); view.glitchAt = performance.now() + 120; return m; };
+    // a prebuilt scene (e.g. a Claude hologram): { id, label, verts, edges, points, labels:[{v, n}], active, animate }
+    view.setMesh = (mesh) => { view.mesh = mesh; view.born = performance.now(); view.glitchAt = performance.now() + 120; return mesh; };
     view.reset = () => { view.az = 0.55; view.el = 0.42; view.dist = 3.2; };
     view.start = () => { if (view.running) return; view.running = true; requestAnimationFrame(loop); };
     view.stop = () => { view.running = false; };
@@ -1800,6 +1802,26 @@ const Holo = (() => {
         for (const i of idx) { const p = P[i]; const zf = clamp((p[2] + 1.6) / 3.2, 0, 1); ctx.fillStyle = `rgba(${Math.min(255, cr + 60)},${Math.min(255, cg + 60)},${Math.min(255, cb + 60)},${0.25 + 0.7 * zf})`; const r = m.points.length ? 2.4 : 1.1 + zf; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, TAU); ctx.fill(); }
       }
       ctx.globalCompositeOperation = 'source-over';
+      // numbered part markers (scenes with labels): the active part is filled and shows its name
+      if (m.labels && m.labels.length && reveal >= 1) {
+        const font = labelFont();
+        for (const L of m.labels) {
+          const p = P[L.v]; if (!p) continue;
+          const on = m.active === L.n, r = view.mini ? 7 : on ? 12 : 10, dy = view.mini ? 12 : 20, x = p[0], y = p[1] - dy;
+          ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.55)`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(x, y + r); ctx.stroke();
+          ctx.fillStyle = on ? `rgb(${cr},${cg},${cb})` : 'rgba(8,12,22,0.88)'; ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.95)`; ctx.lineWidth = on ? 2 : 1.4;
+          ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = on ? '#06121a' : '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.font = `700 ${view.mini ? 9 : on ? 13 : 11}px ${font}`; ctx.fillText(String(L.n), x, y + 0.5);
+          if (on && L.text && !view.mini) {
+            ctx.font = `600 13px ${font}`; const tw = ctx.measureText(L.text).width, bx = clamp(x + r + 6, 4, w - tw - 20), by = y - 12;
+            ctx.fillStyle = 'rgba(8,12,22,0.9)'; ctx.strokeStyle = `rgba(${cr},${cg},${cb},0.8)`; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.roundRect ? ctx.roundRect(bx, by, tw + 14, 24, 6) : ctx.rect(bx, by, tw + 14, 24); ctx.fill(); ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.fillText(L.text, bx + 7, by + 12.5);
+          }
+        }
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      }
       // scan sweep
       const sy = ((t * 0.28) % 1) * h; const g = ctx.createLinearGradient(0, sy - 30, 0, sy + 30); g.addColorStop(0, 'rgba(255,255,255,0)'); g.addColorStop(0.5, `rgba(${cr},${cg},${cb},0.10)`); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = g; ctx.fillRect(0, sy - 30, w, 60);
@@ -1822,7 +1844,10 @@ const Holo = (() => {
     canvas.addEventListener('wheel', (e) => { e.preventDefault(); view.dist = clamp(view.dist * (1 + Math.sign(e.deltaY) * 0.08), 1.8, 7); }, { passive: false });
     return view;
   }
-  return { M, mount, modelsFor, pickForText, labelOf: (id) => (M[id] ? M[id].label : 'Lattice') };
+  let _font = null;
+  function labelFont() { return _font || (_font = getComputedStyle(document.body).fontFamily || 'system-ui, sans-serif'); }
+  // shape helpers are shared so other scene builders (claude-holo.js) draw in the same style
+  return { M, mount, modelsFor, pickForText, labelOf: (id) => (M[id] ? M[id].label : 'Lattice'), shapes: { V, sphere, ring, grid, merge, octa, line } };
 })();
 
 
@@ -2638,6 +2663,48 @@ const MODELS = [
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5' },
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fastest)' },
 ];
+
+// Claude API access for every Claude feature in the console (Ask AI, Claude holograms).
+// Uses the official Anthropic TypeScript SDK, bundled in vendor/anthropic-sdk (no CDN), with the
+// student's own API key; requests go straight from this device to api.anthropic.com.
+const ClaudeAPI = {
+  PRICES: { 'claude-opus-5': [5, 25], 'claude-sonnet-5': [2, 10], 'claude-haiku-4-5': [1, 5] }, // $ per 1M tokens (in, out)
+  _sdk: null,
+  sdk() { return this._sdk || (this._sdk = import(new URL('../../vendor/anthropic-sdk/sdk.mjs', location.href).href).then((m) => m.default)); },
+  async client(apiKey = HS.settings.apiKey) {
+    const Anthropic = await this.sdk();
+    return new Anthropic({ apiKey, dangerouslyAllowBrowser: true, maxRetries: 2, timeout: 5 * 60 * 1000, ...(HS.settings.apiBase ? { baseURL: HS.settings.apiBase } : {}) });
+  },
+  model() { return HS.settings.model || 'claude-opus-5'; },
+  // request fields shared by all calls: adaptive thinking + effort where supported, structured output
+  // format when given, and server-side refusal fallbacks on Claude Opus 5
+  params(model, { effort = 'medium', format } = {}) {
+    const p = { model };
+    if (/opus-5|sonnet-5|opus-4-[678]|sonnet-4-6|fable/.test(model)) { p.thinking = { type: 'adaptive' }; p.output_config = { effort }; }
+    if (format) p.output_config = Object.assign(p.output_config || {}, { format });
+    if (model === 'claude-opus-5') { p.betas = ['server-side-fallback-2026-07-01']; p.fallbacks = 'default'; }
+    return p;
+  },
+  cost(model, u) {
+    const pr = this.PRICES[model]; if (!pr || !u) return null;
+    const input = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) * 1.25 + (u.cache_read_input_tokens || 0) * 0.1;
+    return (input * pr[0] + (u.output_tokens || 0) * pr[1]) / 1e6;
+  },
+  // SDK error → the short codes the UI turns into advice
+  async errorCode(e) {
+    const A = await this.sdk();
+    if (e instanceof A.APIUserAbortError) return 'cancelled';
+    if (e instanceof A.AuthenticationError) return 'http_401';
+    if (e instanceof A.PermissionDeniedError) return 'http_403';
+    if (A.NotFoundError && e instanceof A.NotFoundError) return 'http_404';
+    if (e instanceof A.RateLimitError) return 'http_429';
+    if (e instanceof A.BadRequestError) return /credit balance/i.test(e.message || '') ? 'no_credit' : /too long|too large|context/i.test(e.message || '') ? 'prompt_too_large' : 'http_400';
+    if (e instanceof A.APIConnectionError) return 'network';
+    if (e instanceof A.InternalServerError) return 'server';
+    if (e instanceof A.APIError) return 'http_' + (e.status || 'error');
+    return (e && e.code) || 'unknown';
+  },
+};
 const Agent = {
   turns: [], sample: null, sampleChecked: false, busy: false, ctl: null, pendingQuiz: null,
 
@@ -2688,6 +2755,7 @@ const Agent = {
         <label>Model<select class="sel" id="agModel">${MODELS.map((m) => `<option value="${m.id}" ${s.model === m.id ? 'selected' : ''}>${m.label}</option>`).join('')}</select></label>
         <label>Answer depth<select class="sel" id="agDepth"><option value="quick" ${s.depth === 'quick' ? 'selected' : ''}>Quick</option><option value="medium" ${s.depth === 'medium' ? 'selected' : ''}>Balanced</option><option value="deep" ${s.depth === 'deep' ? 'selected' : ''}>Deep reasoning</option></select></label>
         <button class="btn sm primary" id="agSave">Save settings</button>
+        <button class="btn sm" id="agGuide" type="button">Setup guide: get a Claude API key</button>
         <span class="note">API keys: console.anthropic.com → API keys. The key never leaves this device except to Anthropic. A generic adapter slot for other providers lives in <code>src/07-agent.js</code>.</span></div></div>
       <div class="rs-block"><div class="rail-title">Context sent</div><div class="rs-card"><span>Chapter ${c.n} · ${esc(c.title)}</span><span>${c.terms.length} key terms · ${c.summary.length} summary lines · ${c.formulas.length} formulas</span><span>Excerpt ≈ ${Math.round(Math.min(c.text.length, p === 'claude' ? 14000 : 60000) / 1000)}k chars</span><span class="note">Progress: ${UI.confidence(c).v}% confidence on this chapter</span></div></div>
       <div class="rs-block"><div class="rail-title">Local commands</div><div class="rs-card note">summarize · explain &lt;term&gt; · quiz me · answers · formulas · key terms · show hologram of &lt;term&gt; · study plan · how am I doing · or type any question to search the document.</div></div>`;
@@ -2695,6 +2763,7 @@ const Agent = {
       s.provider = $('#agProvider').value; s.apiKey = $('#agKey').value.trim(); s.model = $('#agModel').value; s.depth = $('#agDepth').value; saveSettings();
       toast(`Agent: ${this.providerLabel()}`); this.renderSide();
     });
+    $('#agGuide').addEventListener('click', () => window.ClaudeSetup && ClaudeSetup.open({ then: () => this.renderSide() }));
   },
   renderLog() {
     const log = $('#chatLog'); const c = UI.chapter();
@@ -2743,6 +2812,8 @@ const Agent = {
     if (code === 'refused') return 'Claude declined that request. Try rephrasing it.';
     if (code === 'http_401' || code === 'http_403') return 'The API key was rejected. Check it in Agent settings (console.anthropic.com → API keys).';
     if (code === 'http_429') return 'The API rate limit was hit — try again in a few seconds.';
+    if (code === 'no_credit') return 'Your Anthropic account has no API credit left. Add credit at console.anthropic.com → Billing, then ask again.';
+    if (code === 'http_404') return 'That model is not available to your API key. Pick another model in Agent settings.';
     if (code === 'network') return 'Could not reach api.anthropic.com from this page. If you are viewing this inside claude.ai, direct API calls are blocked — open the local holostudy.html file instead, or use the built-in Claude option.';
     return `Something went wrong (${code || (e && e.message) || 'unknown'}). ${p === 'anthropic' ? 'Check the key and model in Agent settings.' : 'Try again.'}`;
   },
@@ -2769,34 +2840,18 @@ const Agent = {
     return text;
   },
 
-  // ───────── provider: Claude API with the student's own key (raw HTTP, streaming) ─────────
+  // ───────── provider: Claude API with the student's own key (official SDK, streaming) ─────────
   async askAnthropic(msgs, onText, signal) {
-    const model = HS.settings.model || 'claude-opus-5';
+    const model = ClaudeAPI.model();
     const effort = { quick: 'low', medium: 'medium', deep: 'high' }[HS.settings.depth] || 'medium';
-    const headers = { 'content-type': 'application/json', 'x-api-key': HS.settings.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
-    const body = { model, max_tokens: 8000, stream: true, system: msgs.system, messages: msgs.history };
-    if (/opus-5|sonnet-5|opus-4-[678]|sonnet-4-6|fable/.test(model)) { body.thinking = { type: 'adaptive' }; body.output_config = { effort }; }
-    if (/^claude-opus-5$/.test(model)) { body.fallbacks = 'default'; headers['anthropic-beta'] = 'server-side-fallback-2026-07-01'; }
-    let res;
-    try { res = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers, body: JSON.stringify(body), signal }); }
-    catch (e) { if (e.name === 'AbortError') throw { code: 'cancelled' }; throw { code: 'network', message: e.message }; }
-    if (!res.ok) { let msg = ''; try { const j = await res.json(); msg = j.error && j.error.message; } catch { /* no body */ } throw { code: 'http_' + res.status, message: msg }; }
-    const reader = res.body.getReader(); const dec = new TextDecoder(); let buf = '', text = '', stop = null;
+    let text = '', msg;
     try {
-      while (true) {
-        const { value, done } = await reader.read(); if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const lines = buf.split('\n'); buf = lines.pop();
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue;
-          let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
-          if (ev.type === 'content_block_delta' && ev.delta && ev.delta.type === 'text_delta') { text += ev.delta.text; onText(text); }
-          else if (ev.type === 'message_delta' && ev.delta && ev.delta.stop_reason) stop = ev.delta.stop_reason;
-          else if (ev.type === 'error') throw { code: 'api', message: ev.error && ev.error.message };
-        }
-      }
-    } catch (e) { if (e.name === 'AbortError') throw { code: 'cancelled', text }; throw e; }
-    if (stop === 'refusal') throw { code: 'refused', text };
+      const client = await ClaudeAPI.client();
+      const stream = client.beta.messages.stream({ ...ClaudeAPI.params(model, { effort }), max_tokens: 8000, system: msgs.system, messages: msgs.history }, { signal });
+      stream.on('text', (delta) => { text += delta; onText(text); });
+      msg = await stream.finalMessage();
+    } catch (e) { throw { code: await ClaudeAPI.errorCode(e), message: e && e.message, text }; }
+    if (msg.stop_reason === 'refusal') throw { code: 'refused', text };
     if (!text) throw { code: 'empty_completion' };
     return text;
   },
@@ -2963,5 +3018,7 @@ Meiosis is the type of cell division that produces gametes with half the number 
 })();
 
 </script>
+<!-- Claude holograms + API-key setup guide (uses the globals above) -->
+<script src="claude-holo.js"></script>
 </body>
 </html>

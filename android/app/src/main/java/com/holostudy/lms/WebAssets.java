@@ -47,7 +47,10 @@ final class WebAssets {
         switch (host) {
             case HOST:
                 if (shared != null && path.startsWith(SharedFiles.PATH)) return shared.serve(url); // "Open with" documents
-                return loader.shouldInterceptRequest(url);
+                WebResourceResponse r = loader.shouldInterceptRequest(url);
+                // ES modules (the bundled Anthropic SDK) must be served as JavaScript or the WebView refuses them
+                if (r != null && path.endsWith(".mjs")) r.setMimeType("text/javascript");
+                return r;
             case "cdnjs.cloudflare.com":
                 return bundled("vendor/cdnjs" + path, mimeFor(path));
             case "fonts.googleapis.com":
