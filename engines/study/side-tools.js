@@ -8,7 +8,7 @@
   const $ = (s, r = document) => r.querySelector(s);
   // study.html's UI / HS are top-level consts (not window properties): reach them by name
   const ui = () => (typeof UI !== 'undefined' ? UI : null), hs = () => (typeof HS !== 'undefined' ? HS : null);
-  const MQ = matchMedia('(max-width: 860px) and (min-height: 561px)');
+  const MQ = matchMedia('(max-width: 860px) and (min-height: 561px), (orientation: landscape) and (max-height: 560px)');
   const STEPS = [
     { id: 'holo', label: 'Hologram', icon: '◎', has: () => true },
     { id: 'reread', label: 'Re-read', icon: '↻', has: () => !!$('#reread') },

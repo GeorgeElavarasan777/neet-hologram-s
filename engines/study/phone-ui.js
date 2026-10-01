@@ -10,7 +10,9 @@
 (function () {
   'use strict';
   const q = (s, r = document) => r.querySelector(s);
-  const MQ = matchMedia('(max-width: 860px) and (min-height: 561px)');
+  // phones in portrait, and phones turned sideways (short landscape screens)
+  const MQ = matchMedia('(max-width: 860px) and (min-height: 561px), (orientation: landscape) and (max-height: 560px)');
+  const LAND = matchMedia('(orientation: landscape) and (max-height: 560px)');
   const ui = () => (typeof UI !== 'undefined' ? UI : null), hs = () => (typeof HS !== 'undefined' ? HS : null), pl = () => (typeof Player !== 'undefined' ? Player : null);
   const TAB = { listen: 'Listen', read: 'Read', holo: 'Hologram', summary: 'Summary', inside: 'Inside', agent: 'Agent' };
   let bar, scrim, mini, ready = false;
@@ -23,7 +25,7 @@
       <button class="mb-title" id="mTitleBtn" aria-label="Chapters"><b id="mTitle"></b><span id="mSub"></span></button>
       <button class="mb-btn" id="mSetBtn" aria-label="Voice, speed and more">⋯</button>`;
     app.insertBefore(bar, app.firstChild);
-    scrim = document.createElement('div'); scrim.id = 'mScrim'; document.body.appendChild(scrim);
+    scrim = document.createElement('div'); scrim.id = 'mScrim'; app.appendChild(scrim); // same stacking context as the sheets, so they stay tappable
     q('#mChBtn').onclick = () => sheet('m-ch'); q('#mTitleBtn').onclick = () => sheet('m-ch');
     q('#mSetBtn').onclick = () => sheet('m-set');
     scrim.onclick = () => sheet(null);
@@ -114,6 +116,7 @@
   }
   function apply() {
     document.body.classList.toggle('m-ui', MQ.matches);
+    document.body.classList.toggle('m-land', MQ.matches && LAND.matches);
     if (!MQ.matches) sheet(null);
     update();
     requestAnimationFrame(() => { const U = ui(); if (U && U.holoMain && U.holoMain.resize) U.holoMain.resize(); });
@@ -123,6 +126,8 @@
   window.StudyBack = () => { if (document.body.classList.contains('m-ch') || document.body.classList.contains('m-set')) { sheet(null); return true; } return prevBack ? prevBack() : false; };
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') sheet(null); });
   document.body.classList.toggle('m-ui', MQ.matches); // before first paint, no layout jump
+  document.body.classList.toggle('m-land', MQ.matches && LAND.matches);
+  LAND.addEventListener ? LAND.addEventListener('change', () => apply()) : LAND.addListener(() => apply());
   window.PhoneUI = { setup, update, sheet };
 
   const css = document.createElement('style');
@@ -134,9 +139,17 @@
   body.m-ui #cxPanel { max-height: 48%; }
   body.m-ui #pane-holo.active { display: flex; flex-direction: column; }
   body.m-ui .holo-stage { flex: 1 1 auto; min-height: 0; }
+  body.m-ui .holo-toolbar { z-index: 6; }
+  /* finger-sized targets */
+  body.m-ui .btn.icon, body.m-ui .holo-toolbar .btn, body.m-ui .st-head .btn { min-width: 42px; min-height: 42px; }
+  body.m-ui .transport .btn.icon { width: 44px; height: 44px; }
+  body.m-ui .now-card .meta .btn.sm, body.m-ui #pRead { min-height: 38px; }
+  body.m-ui .toggle { min-height: 38px; padding: 0 4px; }
+  body.m-ui .toggle input { width: 20px; height: 20px; }
+  body.m-ui #sideHandle { width: 26px; }
   body.m-ui .model-chips { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
   body.m-ui .model-chips::-webkit-scrollbar { display: none; }
-  body.m-ui .model-chips .chip { flex-shrink: 0; }
+  body.m-ui .model-chips .chip { flex-shrink: 0; min-height: 36px; }
   body.m-ui .holo-toolbar { top: 92px; }
   body.m-ui .app { padding: 0 0 calc(62px + env(safe-area-inset-bottom)); gap: 0; }
   body.m-ui .main { gap: 0; }
@@ -190,6 +203,31 @@
   body.m-ui .scan-lines div:last-child { display: block; font-family: var(--font-ui); font-size: 13.5px; color: var(--text-2); }
   body.m-ui .scan-lines div::before { content: none; }
   body.m-ui #scanCancel { align-self: center !important; }
+  /* ── landscape phones: same shell, the tabs become a slim rail on the left, one-line app bar ── */
+  body.m-ui.m-land .app { padding: 0 0 0 calc(64px + env(safe-area-inset-left)); }
+  body.m-ui.m-land #mBar { grid-template-columns: 40px minmax(0, 1fr) 40px; padding: 3px 8px; }
+  body.m-ui.m-land .mb-btn { width: 40px; height: 36px; font-size: 18px; }
+  body.m-ui.m-land .mb-title { flex-direction: row; justify-content: center; align-items: baseline; gap: 10px; }
+  body.m-ui.m-land .mb-title b { font-size: 15px; flex: 0 1 auto; min-width: 0; }
+  body.m-ui.m-land .mb-title span { flex: 0 0 auto; }
+  body.m-ui.m-land .tabs { top: 0; bottom: 0; left: 0; right: auto; width: calc(64px + env(safe-area-inset-left)); display: grid; grid-template-columns: 1fr; grid-auto-rows: minmax(0, 1fr);
+    padding: 4px 4px 4px calc(4px + env(safe-area-inset-left)); border-top: 0; border-right: 1px solid var(--border); gap: 2px; }
+  body.m-ui.m-land .tabs button { flex-direction: column; gap: 1px; padding: 2px; font-size: 10px; line-height: 1.1; min-height: 0; position: relative; }
+  body.m-ui.m-land .tabs button .ti { font-size: 16px; }
+  body.m-ui.m-land .tabs button .k { display: none; }
+  body.m-ui.m-land .tabs button.active { background: var(--chrome-soft); border-color: transparent; }
+  body.m-ui.m-land .tabs .cnt { position: absolute; top: 1px; right: 2px; font-size: 9px; padding: 0 4px; }
+  body.m-ui.m-land #pane-read .reader-view { padding-bottom: 76px; }
+  body.m-ui.m-land #mPlayer { bottom: 8px; padding: 4px; width: min(420px, calc(100% - 24px)); grid-template-columns: 40px minmax(0, 1fr) 46px 40px; }
+  body.m-ui.m-land .mp-play { width: 44px; height: 44px; font-size: 17px; }
+  body.m-ui.m-land .mp-btn { width: 40px; height: 40px; }
+  body.m-ui.m-land #mCxBar:not([hidden]) { padding: 8px 14px; }
+  body.m-ui.m-land .holo-toolbar { top: 56px; }
+  body.m-ui.m-land .holo-bottom { right: 64px; } /* the mini textbook never covers the side buttons */
+  body.m-ui.m-land #mainCard { max-height: 78%; }
+  body.m-ui.m-land #pane-holo .cx-panel { width: auto; border-left: 0; border-top: 1px solid var(--border); max-height: 55%; }
+  body.m-ui.m-land.m-set .hdr { max-width: 640px; margin: 0 auto; }
+  body.m-ui.m-land.m-ch .rail-left { left: calc(64px + env(safe-area-inset-left)); width: min(60vw, 340px); border-radius: 0 16px 16px 0; }
   @media (prefers-reduced-motion: reduce) { body.m-ui.m-set .hdr, body.m-ui.m-ch .rail-left { animation: none; } }
   `;
   document.head.appendChild(css);
