@@ -2522,6 +2522,7 @@ const UI = {
     }
     if (primary) this.popTerm(primary.t, 'mini', { quiet: true, page: n });
     else $('#miniCard').innerHTML = '';
+    if (window.SideTools) SideTools.sync(); // phone drawer: refresh which tools this page has
   },
   termSeen(t) { const c = this.chapter(); return !!(HS.progress && HS.progress.terms[c.n + ':' + t.toLowerCase()]); },
 
@@ -3193,5 +3194,6 @@ Meiosis is the type of cell division that produces gametes with half the number 
 <script src="claude-holo.js"></script>
 <script src="inside.js"></script>
 <script src="page-budget.js"></script>
+<script src="side-tools.js"></script>
 </body>
 </html>
