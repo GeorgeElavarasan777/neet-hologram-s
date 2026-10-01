@@ -268,6 +268,23 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
 .transport .big { width: 54px; height: 54px; border-radius: 50%; background: var(--subject); color: #0b0f1a; font-size: 22px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 24px rgba(var(--subject-rgb), 0.45); border: none; }
 .transport .big:hover { filter: brightness(1.1); }
 .transport .sp { flex: 1; }
+/* Listen: one neat column of parts — title line, now-playing card (its text scrolls), progress, centred controls */
+.lhead .ph-title { min-width: 0; flex: 1 1 280px; }
+.lhead .ph-title h2 { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ph-sub { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing: 1px; margin-top: 3px; }
+.lhead .chips { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.player { overflow: hidden; }
+.now-card { min-height: 0; }
+.now-card .meta { flex-wrap: nowrap; }
+.now-text { flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding-right: 4px; }
+.lprog { display: grid; grid-template-columns: 3ch 1fr 3ch; gap: 10px; align-items: center; font-family: var(--font-mono); font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.lprog span:last-child { text-align: right; }
+.transport { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; flex-shrink: 0; flex-wrap: nowrap; }
+.transport .tmid { display: flex; align-items: center; gap: 14px; }
+.transport .tside { display: flex; gap: 8px; }
+.transport .tside.end { justify-content: flex-end; }
+.transport .tnote { grid-column: 1 / -1; text-align: center; }
+.tabs button .ti { line-height: 1; }
 .toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); cursor: pointer; -webkit-user-select: none; user-select: none; }
 .toggle input { accent-color: var(--chrome); }
 .vu { display: flex; gap: 3px; align-items: flex-end; height: 22px; }
@@ -451,6 +468,35 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
   .model-chips { max-width: 100%; }
   .holo-bottom { flex-direction: column; align-items: stretch; }
 }
+/* ───────── phones in portrait: two aligned header rows, 6 equal tabs, now-playing on top ───────── */
+@media (max-width: 860px) and (min-height: 561px) {
+  .hdr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px 10px; }
+  .hdr-brand { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .hdr h1 { max-width: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #hdrSubject { max-width: 40vw; }
+  .hdr-tools { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+  .hdr-tools > * { min-height: 38px; }
+  #btnHome { min-width: 40px; justify-content: center; }
+  #btnHome .lbl { display: none; }
+  #voiceSel { max-width: none; width: 100%; min-width: 0; }
+  .heard { display: inline-flex; align-items: center; padding: 4px 8px; }
+  .rail-left { scrollbar-width: none; max-height: 52px; }
+  .rail-left::-webkit-scrollbar { display: none; }
+  .tabs { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3px; padding: 4px; }
+  .tabs button { flex-direction: column; gap: 2px; padding: 6px 2px; font-size: 11px; line-height: 1.1; position: relative; min-width: 0; }
+  .tabs button .ti { font-size: 17px; }
+  .tabs button .tl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .tabs .cnt { position: absolute; top: 2px; right: 2px; font-size: 9px; padding: 0 4px; }
+  .lhead { padding: 10px 12px 8px; gap: 6px 12px; }
+  .lhead .ph-title h2 { font-size: 16px; }
+  .listen { flex-direction: column; }
+  .listen .player { order: -1; flex: 0 0 auto; padding: 10px 12px 12px; gap: 10px; border-bottom: 1px solid var(--border); }
+  .now-card { flex: 0 0 auto; padding: 12px 14px; gap: 8px; border-radius: 12px; }
+  .now-text { font-size: 16.5px; line-height: 1.55; max-height: 21vh; }
+  .now-card .meta .btn.sm { padding: 3px 10px; min-height: 30px; }
+  .transport .big { width: 54px; height: 54px; }
+  .notes-list { width: 100%; flex: 1 1 auto; min-height: 0; max-height: none; border-right: none; border-bottom: none; padding: 6px 8px; }
+}
 /* ───────── landscape phones / small tablets: panels side by side, compact chrome ───────── */
 @media (orientation: landscape) and (max-height: 560px) {
   .app { padding: 4px 8px 6px; gap: 5px; }
@@ -474,6 +520,16 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
   .pane-head h2 { font-size: 15px; }
   .listen { flex-direction: row; }
   .notes-list { width: 36%; max-height: none; border-right: 1px solid var(--border); border-bottom: none; }
+  .listen .player { order: 0; flex: 1 1 auto; padding: 8px 12px 10px; gap: 8px; border-bottom: none; }
+  .now-card { flex: 1 1 auto; padding: 10px 14px; gap: 6px; }
+  .now-text { max-height: none; font-size: 16px; line-height: 1.5; }
+  .now-card .meta .btn.sm { padding: 2px 10px; min-height: 28px; }
+  .transport .big { width: 46px; height: 46px; font-size: 19px; }
+  .lprog { display: none; } /* "Note 3 / 135" on the card already shows where you are */
+  .lhead { padding: 6px 12px; }
+  .lhead .ph-title { display: flex; align-items: baseline; gap: 12px; }
+  .lhead .ph-title h2 { flex: 0 1 auto; min-width: 0; }
+  .ph-sub { margin-top: 0; white-space: nowrap; }
   .now-text { font-size: 15px; }
   .read { flex-direction: row; }
   .holo-side { width: 34%; max-height: none; border-top: none; border-left: 1px solid var(--border); }
@@ -607,7 +663,7 @@ body.wide-view .pane { border-radius: 0; border: none; }
       <span class="chip subject" id="hdrSubject">Subject</span>
     </div>
     <div class="hdr-tools">
-      <button class="btn ghost sm" id="btnHome" title="Back to library">⌂ Library</button>
+      <button class="btn ghost sm" id="btnHome" title="Back to library" aria-label="Library">⌂<span class="lbl"> Library</span></button>
       <select class="sel" id="voiceSel" aria-label="Voice"></select>
       <select class="sel" id="rateSel" aria-label="Speed">
         <option value="0.8">0.8×</option><option value="0.9">0.9×</option><option value="1" selected>1×</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option><option value="1.5">1.5×</option>
@@ -622,12 +678,12 @@ body.wide-view .pane { border-radius: 0; border: none; }
 
     <main class="stage">
       <div class="tabs" id="tabs" role="tablist">
-        <button data-tab="listen" class="active" role="tab">🎧 Listen <span class="k">1</span></button>
-        <button data-tab="read" role="tab">📄 Read <span class="k">2</span></button>
-        <button data-tab="holo" role="tab">◎ Hologram <span class="k">3</span></button>
-        <button data-tab="summary" role="tab">◆ Summary <span class="k">4</span></button>
-        <button data-tab="inside" role="tab">▦ Inside <span class="cnt" hidden></span><span class="k">5</span></button>
-        <button data-tab="agent" role="tab">🤖 Agent <span class="k">6</span></button>
+        <button data-tab="listen" class="active" role="tab"><span class="ti">🎧</span><span class="tl">Listen</span><span class="k">1</span></button>
+        <button data-tab="read" role="tab"><span class="ti">📄</span><span class="tl">Read</span><span class="k">2</span></button>
+        <button data-tab="holo" role="tab"><span class="ti">◎</span><span class="tl">Hologram</span><span class="k">3</span></button>
+        <button data-tab="summary" role="tab"><span class="ti">◆</span><span class="tl">Summary</span><span class="k">4</span></button>
+        <button data-tab="inside" role="tab"><span class="ti">▦</span><span class="tl">Inside</span><span class="cnt" hidden></span><span class="k">5</span></button>
+        <button data-tab="agent" role="tab"><span class="ti">🤖</span><span class="tl">Agent</span><span class="k">6</span></button>
       </div>
 
       <section class="pane active" id="pane-listen"></section>
@@ -2057,6 +2113,11 @@ const Player = {
     const hit = idx >= 0 ? spans[idx] : null;
     if (!hit) return;
     for (const s of spans) { s.el.classList.toggle('on', s === hit); s.el.classList.toggle('past', s.i < hit.i); }
+    const box = hit.el.parentElement;
+    if (box && box.scrollHeight > box.clientHeight + 2) {
+      const top = hit.el.offsetTop - box.offsetTop, h = hit.el.offsetHeight;
+      if (top < box.scrollTop || top + h > box.scrollTop + box.clientHeight) box.scrollTop = Math.max(0, top - box.clientHeight / 3);
+    }
   },
   bindSpans(container) {
     this._spans = $$('.w', container).map((el) => ({ el, i: +el.dataset.i }));
@@ -2230,7 +2291,7 @@ const UI = {
     Inside.updateTabBadge();
     Inside.ensure(doc); // PDFs: find figures / tables / diagrams in the background
     const st = doc._storage;
-    if (st) setTimeout(() => { if (HS.doc === doc) Inside.summary(doc); }, 350); // just scanned: show what was found
+    if (st && !this.quietSummary) setTimeout(() => { if (HS.doc === doc) Inside.summary(doc); }, 350); // just scanned (an upload): show what was found
     if (st && !st.docSaved) toast(`${doc.chapters.length} chapters ready, but your storage is full, so this document won't stay in the library after you close it.`, true);
     else if (st && !st.fileSaved) toast(`${doc.chapters.length} chapters ready. Storage is nearly full, so page images won't be kept (the text is saved).`, true);
     else toast(`${doc.chapters.length} chapters · ${doc.noteCount} voice notes ready`);
@@ -2336,7 +2397,7 @@ const UI = {
     const words = n ? this.wordSpans(n.text) : '';
     const playing = Player.playing && !Player.paused;
     pane.innerHTML = `
-      <div class="pane-head"><h2>🎧 Chapter ${c.n} · ${esc(c.title)} <small>${list.length - 1} notes · ~${mins} min · ${heardIn} heard</small></h2>
+      <div class="pane-head lhead"><div class="ph-title"><h2>🎧 Chapter ${c.n} · ${esc(c.title)}</h2><div class="ph-sub">${list.length - 1} notes · ~${mins} min · ${heardIn} heard</div></div>
         <div class="chips"><label class="toggle"><input type="checkbox" id="keyOnly" ${HS.settings.keyOnly ? 'checked' : ''}> Key points only</label><label class="toggle"><input type="checkbox" id="autoAdv" ${HS.settings.autoAdvance ? 'checked' : ''}> Auto-advance</label></div></div>
       <div class="listen">
         <div class="notes-list">${items.join('')}</div>
@@ -2347,14 +2408,16 @@ const UI = {
             <div class="meta"><span class="eyebrow">${n && !n.intro && c.sections[n.sec] ? esc(c.sections[n.sec].title) : (n && n.intro ? 'Generated briefing' : 'Chapter text')}</span>
               ${n && !n.intro ? `<button class="btn sm ghost" id="markHeard">${HS.progress.heard[n.id] ? '✓ Heard' : 'Mark heard'}</button>` : ''}</div>
           </div>
+          <div class="lprog" aria-label="Chapter progress"><span>${Player.idx}</span><div class="bar"><i style="width:${pct(Player.idx, Math.max(1, list.length - 1))}%"></i></div><span>${list.length - 1}</span></div>
           <div class="transport">
-            <button class="btn icon" id="pPrev" title="Previous (←)">⏮</button>
-            <button class="big" id="pPlay" title="Play / pause (Space)">${playing ? '❚❚' : '▶'}</button>
-            <button class="btn icon" id="pNext" title="Next (→)">⏭</button>
-            <button class="btn icon" id="pRepeat" title="Repeat (R)">↻</button>
-            <span class="sp"></span>
-            <button class="btn sm ghost" id="pRead" title="Open this page in Read">📄 Page ${n ? n.page : ''}</button>
-            ${!Voice.supported ? '<span class="note">Speech is not supported here — read along instead.</span>' : ''}
+            <div class="tside"><button class="btn icon" id="pRepeat" title="Repeat (R)" aria-label="Repeat">↻</button></div>
+            <div class="tmid">
+              <button class="btn icon" id="pPrev" title="Previous (←)" aria-label="Previous note">⏮</button>
+              <button class="big" id="pPlay" title="Play / pause (Space)" aria-label="${playing ? 'Pause' : 'Play'}">${playing ? '❚❚' : '▶'}</button>
+              <button class="btn icon" id="pNext" title="Next (→)" aria-label="Next note">⏭</button>
+            </div>
+            <div class="tside end"><button class="btn sm ghost" id="pRead" title="Open this page in Read">📄 Page ${n ? n.page : ''}</button></div>
+            ${!Voice.supported ? '<span class="note tnote">Speech is not supported here — read along instead.</span>' : ''}
           </div>
         </div>
       </div>`;
@@ -2756,7 +2819,9 @@ const DemoPack = {
       const docId = 'd' + hashStr(p.title + p.text.length + p.text.slice(0, 200));
       const stored = await DB.get('docs', docId);
       if (stored) return UI.openStored(docId);
-      await UI.openText(p.text, p.title);
+      // a built-in chapter goes straight to the tab the student picked (no "scan complete" pop-up)
+      UI.quietSummary = true;
+      try { await UI.openText(p.text, p.title); } finally { UI.quietSummary = false; }
     } catch (e) { console.error(e); toast(e.message || 'Could not open the pack.', true); }
   },
 };
