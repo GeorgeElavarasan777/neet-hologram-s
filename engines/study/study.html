@@ -470,7 +470,7 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
 }
 /* ───────── phones in portrait: two aligned header rows, 6 equal tabs, now-playing on top ───────── */
 @media (max-width: 860px) and (min-height: 561px) {
-  .hdr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px 10px; }
+  .hdr { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 8px 12px; } /* rows line up with the content edge below */
   .hdr-brand { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
   .hdr h1 { max-width: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #hdrSubject { max-width: 40vw; }
@@ -495,7 +495,10 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
   .now-text { font-size: 16.5px; line-height: 1.55; max-height: 21vh; }
   .now-card .meta .btn.sm { padding: 3px 10px; min-height: 30px; }
   .transport .big { width: 54px; height: 54px; }
-  .notes-list { width: 100%; flex: 1 1 auto; min-height: 0; max-height: none; border-right: none; border-bottom: none; padding: 6px 8px; }
+  .notes-list { width: 100%; flex: 1 1 auto; min-height: 0; max-height: none; border-right: none; border-bottom: none; padding: 6px 12px; }
+  .note-btn { padding-left: 0; padding-right: 0; }
+  .notes-list .sec-label { padding-left: 0; padding-right: 0; }
+  .note-btn.active, .note-btn:hover { padding-left: 8px; padding-right: 8px; margin: 0 -8px; width: calc(100% + 16px); }
 }
 /* ───────── landscape phones / small tablets: panels side by side, compact chrome ───────── */
 @media (orientation: landscape) and (max-height: 560px) {

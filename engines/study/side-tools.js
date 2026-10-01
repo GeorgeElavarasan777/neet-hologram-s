@@ -131,7 +131,9 @@
   body.st-mode .st-body { display: block; flex: 1; min-height: 0; overflow-y: auto; }
   body.st-mode .st-foot { display: block; padding: 10px 12px 12px; border-top: 1px solid var(--border); flex-shrink: 0; }
   body.st-mode .st-foot .btn { width: 100%; justify-content: center; min-height: 40px; }
-  body.st-mode .reader-view { padding-left: 26px; } /* room for the Tools tab on the left edge */
+  /* room for the Tools tab on the left edge: the page bar and the text share one left edge */
+  body.st-mode .reader-view { padding-left: 26px; padding-right: 6px; }
+  body.st-mode #readerBar { padding-left: 26px; }
   body.st-mode .holo-side[data-step] .st-body > * { display: none; }
   body.st-mode .holo-side[data-step="holo"] .st-body > .holo-mini-wrap,
   body.st-mode .holo-side[data-step="reread"] .st-body > #pageTools,
