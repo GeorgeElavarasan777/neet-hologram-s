@@ -2818,7 +2818,7 @@ const DemoPack = {
   },
   async open(id) {
     try {
-      toast('Loading NCERT pack…');
+      if (!document.body.classList.contains('m-ui')) toast('Loading NCERT pack…'); // phones show the loading card instead
       const pack = await this.ensure(); const p = pack[id]; if (!p) return toast('Unknown pack', true);
       const docId = 'd' + hashStr(p.title + p.text.length + p.text.slice(0, 200));
       const stored = await DB.get('docs', docId);
@@ -3198,5 +3198,6 @@ Meiosis is the type of cell division that produces gametes with half the number 
 <script src="inside.js"></script>
 <script src="page-budget.js"></script>
 <script src="side-tools.js"></script>
+<script src="phone-ui.js"></script>
 </body>
 </html>
