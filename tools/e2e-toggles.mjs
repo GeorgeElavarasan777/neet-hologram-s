@@ -10,7 +10,8 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const ADB = process.env.ADB || path.join(process.env.LOCALAPPDATA || '', 'Android', 'Sdk', 'platform-tools', 'adb.exe');
-const PKG = 'com.holostudy.lms';
+// the debug build installs as its own app (applicationIdSuffix '.debug'); its activity class keeps the base package
+const PKG = process.env.PKG || 'com.holostudy.lms.debug';
 const OUT = path.resolve(process.argv[2] || 'e2e-results');
 const PACE = +(process.env.PACE || 450);
 mkdirSync(OUT, { recursive: true });
@@ -66,7 +67,7 @@ async function afterReload() { await sleep(4500); await helpers(); }
 // ───────── Android-side observations ─────────
 function ourWindow() {
   const w = adb('shell', 'dumpsys', 'window', 'windows');
-  const i = w.indexOf(`${PKG}/${PKG}.MainActivity}:`); if (i < 0) return '';
+  const i = w.indexOf(`${PKG}/com.holostudy.lms.MainActivity}:`); if (i < 0) return '';
   const j = w.indexOf('Window #', i + 10); return w.slice(i, j > 0 ? j : i + 8000);
 }
 // An attached DevTools session itself makes the WebView keep the screen on, so detach before reading

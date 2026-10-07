@@ -2436,6 +2436,11 @@ const UI = {
     $$('.pane').forEach((p) => p.classList.toggle('active', p.id === 'pane-' + name));
     if (this.dirty[name] || force) { this.dirty[name] = false; ({ listen: () => this.renderListen(), read: () => this.renderRead(), holo: () => this.renderHolo(), summary: () => this.renderSummary(), inside: () => Inside.render(), agent: () => Agent.render() })[name](); }
     if (name === 'holo' && this.holoMain) { this.holoMain.resize(); }
+    this.tellHost();
+  },
+  tellHost() {
+    const c = this.chapter(); if (!c || parent === window) return;
+    try { parent.postMessage({ type: 'ss-lesson-at', tab: HS.tab, ch: String(c.n), title: c.title, doc: HS.doc.title || '' }, location.origin); } catch (e) {}
   },
   selectChapter(i, opts = {}) {
     const d = HS.doc; if (!d || !HS.progress) return;

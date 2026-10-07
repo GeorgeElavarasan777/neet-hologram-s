@@ -112,7 +112,7 @@
     const ko = q('#mKeyOnly'), aa = q('#mAutoAdv');
     if (ko) { ko.setAttribute('aria-pressed', String(!!H.settings.keyOnly)); aa.setAttribute('aria-pressed', String(!!H.settings.autoAdvance)); }
     q('#mpPage').textContent = `Page ${H.page} / ${total}`;
-    const secs = c.sections || [], cur = [...secs].reverse().find((s) => s.page <= H.page);
+    const secs = c.sections || [], cur = secs.find((s) => s.page === H.page) || [...secs].reverse().find((s) => s.page < H.page);
     q('#mpSec').textContent = cur ? cur.title : `Chapter ${c.n}`;
     const sel = q('#mpJump'), key = c.n + ':' + secs.length;
     if (sel.dataset.k !== key) { sel.dataset.k = key; sel.innerHTML = `<option value="">Jump to section…</option>${secs.map((s) => `<option value="${s.page}">${s.title.replace(/[<>&]/g, '')} · p. ${s.page}</option>`).join('')}`; }
@@ -144,6 +144,9 @@
   const css = document.createElement('style');
   css.textContent = `
   #mBar, #mScrim, #mPlayer, #mCxBar, #mOpts { display: none; }
+  body.m-ui #toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
+  body.m-ui:has(#pane-read.active) #toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+  body.m-ui.m-land #toast, body.m-ui.m-land:has(#pane-read.active) #toast { bottom: 14px; left: calc(50% + 32px); max-width: min(70vw, 520px); }
   /* ⋯ sheet: listening options */
   body.m-ui #mOpts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; grid-column: 1 / -1; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 2px; }
   .mo-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }

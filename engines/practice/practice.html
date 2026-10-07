@@ -103,6 +103,8 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing:
 
 /* ───────── shooter ───────── */
 #game { --g-text: #eaf2ff; --g-soft: #dbe7ff; --g-topic: #9fb6ff; --g-hint: #ffd166; --g-help: #7f95c9; --g-panel: rgba(10, 16, 40, 0.78); --g-line: rgba(120, 160, 255, 0.28); background: var(--g-bg, #03040c); color: var(--g-text); }
+/* holding a finger down to fire must never start a text selection or the long-press menu */
+#game, #game * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
 #gameCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; display: block; cursor: crosshair; }
 .ghud { position: absolute; left: 0; right: 0; top: 0; padding: calc(8px + env(safe-area-inset-top)) 10px 0; display: flex; flex-direction: column; gap: 6px; pointer-events: none; }
 .ghud .top { display: flex; align-items: center; gap: 8px; }
@@ -368,6 +370,7 @@ const Game = {
   },
 };
 $('#gPause').onclick = () => Shooter.pause(true);
+$('#game').addEventListener('contextmenu', (e) => e.preventDefault());
 $('#gResume').onclick = () => Shooter.pause(false);
 $('#gHintBtn').onclick = () => Shooter.toggleHint();
 $('#gHelp').onclick = help;

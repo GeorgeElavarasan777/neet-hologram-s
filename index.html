@@ -628,9 +628,9 @@
   $('#scrim').addEventListener('click',()=>{ if(history.state&&history.state.drawer) history.back(); else closeDrawer(); });
 
   // ---------- lesson viewer ----------
-  let viewerUrl='', viewerOpen=false;
+  let viewerUrl='', viewerOpen=false, studyCtx=null; // studyCtx: the built-in class being studied
   function openViewer(url,title,sub,key){
-    viewerUrl=url;
+    viewerUrl=url; studyCtx=null;
     $('#viewerTitle').innerHTML=`${esc(title)}${sub?` <small>· ${esc(sub)}</small>`:''}`;
     const f=$('#viewerFrame'); const spin=$('#viewerSpin');
     spin.style.display='block';
@@ -662,7 +662,25 @@
     const label={listen:'Listen',read:'Read',summary:'Summary',agent:'Ask AI'}[act]||act;
     const url=`${ENG.study}?pack=${encodeURIComponent(pack)}&tab=${act}&ch=${ch.no}`;
     openViewer(url, `${label}: ${ch.title}`, `Class ${cls}`, chapKey(subjKey,cls,ch.no));
+    studyCtx={subjKey,cls};
   }
+  // the lesson reports its tab and chapter: the title bar follows, and notes/progress go to the chapter on screen
+  window.addEventListener('message',(e)=>{
+    const d=e.data;
+    if(e.origin!==location.origin||!d||d.type!=='ss-lesson-at'||$('#viewer').hidden) return;
+    try{ if(e.source!==$('#viewerFrame').contentWindow) return; }catch(err){ return; }
+    const label={listen:'Listen',read:'Read',summary:'Summary',agent:'Ask AI',inside:'Inside',holo:'Hologram'}[d.tab]||'';
+    if(studyCtx){
+      const {ch}=lookup(studyCtx.subjKey,studyCtx.cls,+d.ch);
+      if(!ch) return;
+      const title=`${label}: ${ch.title}`, key=chapKey(studyCtx.subjKey,studyCtx.cls,ch.no);
+      $('#viewerTitle').innerHTML=`${esc(title)} <small>· Class ${esc(studyCtx.cls)}</small>`;
+      markChapter(studyCtx.subjKey,studyCtx.cls,ch,d.tab);
+      const cur=SS.lesson.current; if(!cur||cur.key!==key) SS.lesson.open({key,title:ch.title});
+    } else if(d.title){
+      $('#viewerTitle').innerHTML=`${esc(label?`${label}: ${d.title}`:d.title)}${d.doc?` <small>· ${esc(d.doc)}</small>`:''}`;
+    }
+  });
   function openHologram(hash,subjKey,ch){
     markHolo(hash);
     openViewer(`${ENG.holo}#${hash}`, ch?ch.title:'Hologram', 'Hologram Room', 'holo:'+hash);

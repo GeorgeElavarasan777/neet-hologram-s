@@ -34,6 +34,11 @@ android {
     }
 
     buildTypes {
+        // test builds install next to the real app (fresh data, like a new student's phone)
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
         release {
             minifyEnabled false
             // Signed with the local debug key so it installs directly; use your own keystore for Play.
