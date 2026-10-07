@@ -401,7 +401,18 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
 .stat .v { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; line-height: 1.1; }
 .stat .l { font-size: 11px; color: var(--muted); }
 .mission { display: flex; flex-direction: column; gap: 6px; }
-.mission .row { display: grid; grid-template-columns: 26px 1fr 90px 46px; align-items: center; gap: 8px; font-size: 12.5px; }
+.mission .row { display: grid; grid-template-columns: 26px 1fr 90px 46px 14px; align-items: center; gap: 8px; font-size: 12.5px; width: 100%; text-align: left; padding: 6px 8px; margin: 0 -8px; width: calc(100% + 16px); border-radius: 8px; min-height: 36px; transition: background .15s; }
+.mission .row:hover, .mission .row:focus-visible { background: var(--card); }
+.mission .row:active { background: var(--card-2); }
+.mission .row .go { color: var(--muted); font-size: 15px; line-height: 1; text-align: right; }
+.mission .row.cur { background: rgba(var(--subject-rgb), 0.10); }
+.mission-sheet { display: flex; flex-direction: column; gap: 10px; }
+.ms-bar { height: 6px; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+.ms-bar i { display: block; height: 100%; border-radius: 6px; }
+.ms-stats { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--text-2); }
+.ms-stats b { color: var(--text); font-family: var(--font-mono); }
+.ms-dialog .cx-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ms-dialog .cx-actions .btn { justify-content: center; min-height: 44px; }
 .mission .row .n { font-family: var(--font-mono); color: var(--subject); font-size: 11px; }
 .mission .row .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
 .mission .row .v { font-family: var(--font-mono); font-size: 11px; text-align: right; color: var(--text); }
@@ -2623,6 +2634,24 @@ const UI = {
     const color = v < 15 ? 'var(--muted)' : v < 55 ? 'var(--warn)' : v < 75 ? 'var(--chrome)' : 'var(--good)';
     return { v, level, color, heard, read, terms, recall, seen, pages, termsSeen, termN, answered: answered.length, correct };
   },
+  // tap a chapter in Mission status: a small pop-up to jump straight into it
+  chapterSheet(i) {
+    const d = HS.doc, x = d && d.chapters[i]; if (!x || !window.StudyDialog) { this.selectChapter(i); return; }
+    const cc = this.confidence(x), heard = this.heardCount(x);
+    const go = (tab) => () => { if (i !== HS.chapterIdx) this.selectChapter(i); this.setTab(tab, true); const pane = $('#pane-' + tab); if (pane) pane.scrollTop = 0; };
+    const el = StudyDialog.open({
+      eyebrow: `Chapter ${x.n}${x.startPage ? ` · p. ${x.startPage}–${x.endPage}` : ''}`, title: x.title,
+      body: `<div class="mission-sheet"><div class="ms-bar"><i style="width:${cc.v}%;background:${cc.color}"></i></div>
+        <div class="ms-stats"><span><b style="color:${cc.color}">${cc.v}%</b> ${esc(cc.level)}</span><span><b>${heard}</b>/${x.notes.length} notes heard</span>${x.sections && x.sections.length ? `<span><b>${x.sections.length}</b> sections</span>` : ''}</div></div>`,
+      actions: [
+        { label: '🎧 Listen', primary: true, onClick: go('listen') },
+        { label: '📄 Read', onClick: go('read') },
+        { label: '◎ Hologram', onClick: go('holo') },
+        { label: '◆ Summary', onClick: go('summary') },
+      ],
+    });
+    el.querySelector('.cx-sheet').classList.add('ms-dialog');
+  },
   renderSummary() {
     const c = this.chapter(); const pane = $('#pane-summary'); const d = HS.doc; if (!c) return;
     const scroll = $('.pane-body', pane) ? $('.pane-body', pane).scrollTop : 0;
@@ -2649,7 +2678,7 @@ const UI = {
       const a = qa[q.id];
       return `<div class="q" data-q="${q.id}"><div class="qt"><b>RECALL</b> ${esc(q.text)}</div><div class="opts">${q.options.map((o, i) => `<button class="opt ${a ? (i === q.answer ? 'right' : (a.a === i ? 'wrong' : '')) : ''}" data-i="${i}" ${a ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>${a ? `<div class="fb ${a.ok ? 'ok' : 'no'}">${a.ok ? 'Correct' : 'Not quite — it is ' + esc(q.term)}${q.page ? ' · page ' + q.page : ''}</div>` : ''}</div>`;
     }).join('') : '<div class="note">Not enough definition-style sentences in this chapter to build a recall check. The summary and formula sheet still count toward confidence.</div>';
-    const mission = d.chapters.map((x, i) => { const cc = this.confidence(x); return `<div class="row ${i === HS.chapterIdx ? 'cur' : ''}"><span class="n">${x.n}</span><span class="t">${esc(x.title)}</span><span class="bar"><i style="width:${cc.v}%;background:${cc.color}"></i></span><span class="v">${cc.v}%</span></div>`; }).join('');
+    const mission = d.chapters.map((x, i) => { const cc = this.confidence(x); return `<button class="row ${i === HS.chapterIdx ? 'cur' : ''}" data-mission="${i}" aria-label="Chapter ${x.n}: ${esc(x.title)}, ${cc.v}% — open"><span class="n">${x.n}</span><span class="t">${esc(x.title)}</span><span class="bar"><i style="width:${cc.v}%;background:${cc.color}"></i></span><span class="v">${cc.v}%</span><span class="go" aria-hidden="true">›</span></button>`; }).join('');
     pane.innerHTML = `
       <div class="pane-head"><h2>◆ Chapter ${c.n} · ${esc(c.title)} <small>confidence readout</small></h2><button class="btn sm ghost" id="resetCh">Reset chapter progress</button></div>
       <div class="pane-body"><div class="summary-grid">
@@ -2671,6 +2700,7 @@ const UI = {
       HS.progress.quiz[c.n] = HS.progress.quiz[c.n] || {}; HS.progress.quiz[c.n][q.id] = { a: i, ok: i === q.answer }; Progress.save();
       SFX.play(i === q.answer ? 'ok' : 'err'); this.renderSummary(); this.renderRail(); this.renderChapters();
     }));
+    $$('[data-mission]', pane).forEach((b) => b.addEventListener('click', () => this.chapterSheet(+b.dataset.mission)));
     $('#resetCh', pane).addEventListener('click', () => {
       for (const n of c.notes) delete HS.progress.heard[n.id]; for (let p = c.startPage; p <= c.endPage; p++) delete HS.progress.pages[p];
       for (const key of Object.keys(HS.progress.terms)) if (key.startsWith(c.n + ':')) delete HS.progress.terms[key];

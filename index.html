@@ -78,8 +78,12 @@
   .stat small{display:block;color:var(--muted);font-size:.66rem;margin-top:6px;letter-spacing:.08em;}
   .progpanel h2{margin:0 0 4px;font-size:1rem;}
   .progpanel .sub{color:var(--muted);font-size:.8rem;margin:0 0 14px;}
-  .progrow{display:grid;grid-template-columns:86px 1fr 40px;align-items:center;gap:10px;margin:0 0 10px;font-size:.8rem;color:var(--muted);}
+  .progrow{display:grid;grid-template-columns:86px 1fr 52px;align-items:center;gap:10px;margin:0 0 10px;font-size:.8rem;color:var(--muted);}
   .progrow b{color:var(--text);font-weight:600;}
+  button.progrow.tap{width:calc(100% + 16px);margin:0 -8px 4px;padding:8px;border-radius:10px;background:none;border:0;color:inherit;font:inherit;font-size:.8rem;text-align:left;cursor:pointer;grid-template-columns:86px 1fr 52px;min-height:40px;}
+  button.progrow.tap:hover,button.progrow.tap:focus-visible{background:var(--surface-2,rgba(255,255,255,.05));}
+  button.progrow.tap .go{color:var(--muted);font-weight:400;margin-left:4px;}
+  #pctAll{padding-right:15px;} /* lines up with the subject rows' % (they carry a › after it) */
   .progrow span:last-child{text-align:right;font-family:var(--font-mono);font-size:.76rem;font-variant-numeric:tabular-nums;}
   .cta{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border-radius:10px;font-weight:600;font-size:.86rem;
@@ -485,7 +489,8 @@
     $('#barAll').style.width=pct+'%'; $('#pctAll').textContent=pct+'%';
     const nchap=Object.keys(store.chapters).length, nholo=Object.keys(store.holos).length;
     $('#progLine').textContent = (nchap||nholo)? `${nchap} chapter${nchap!=1?'s':''} · ${nholo} hologram${nholo!=1?'s':''} explored` : 'Start your first chapter';
-    $('#subjBars').innerHTML = CUR.subjects.map(s=>{ const p=subjPct(s); return `<div class="progrow"><span>${esc(s.name)}</span><div class="ss-bar"><i style="width:${p}%"></i></div><span>${p}%</span></div>`; }).join('');
+    $('#subjBars').innerHTML = CUR.subjects.map(s=>{ const p=subjPct(s); return `<button class="progrow tap" data-subject="${s.key}" aria-label="${esc(s.name)}, ${p}% — open chapters"><span>${esc(s.name)}</span><div class="ss-bar"><i style="width:${p}%"></i></div><span>${p}% <b class="go" aria-hidden="true">›</b></span></button>`; }).join('');
+    $$('#subjBars .progrow.tap').forEach(b=>b.addEventListener('click',()=>setView('subject',{subject:b.dataset.subject})));
     $('#subjectCards').innerHTML = CUR.subjects.map(s=>{
       const ch = s.classes.reduce((a,c)=>a+c.chapterCount,0);
       const holo = s.classes.reduce((a,c)=>a+c.hologramCount,0);
