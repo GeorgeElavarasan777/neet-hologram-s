@@ -77,14 +77,11 @@ final class Speech {
             String deviceLang = Locale.getDefault().getLanguage();
             boolean google = "com.google.android.tts".equals(tts.getDefaultEngine());
             Map<String, Integer> perLocale = new HashMap<>();
-            // prefer offline voices: hide a network voice when an installed one exists for its locale
-            java.util.Set<String> localLocales = new java.util.HashSet<>();
+            // Every installed voice AND the online ones: Google's online ("network") voices are its most
+            // natural, human-sounding ones. Each comes with its quality and speaker, so the page can name
+            // them clearly ("Natural · online") and fall back to the same speaker offline.
+            java.util.regex.Pattern googleName = java.util.regex.Pattern.compile("^[a-z]{2,3}-[a-z]{2}-x-([a-z0-9]{3})-(local|network)$");
             if (voices != null) for (Voice v : voices) {
-                boolean installed = v.getFeatures() == null || !v.getFeatures().contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED);
-                if (!v.isNetworkConnectionRequired() && installed) localLocales.add(v.getLocale().toLanguageTag());
-            }
-            if (voices != null) for (Voice v : voices) {
-                if (v.isNetworkConnectionRequired() && localLocales.contains(v.getLocale().toLanguageTag())) continue;
                 Locale loc = v.getLocale();
                 String lang = loc.getLanguage();
                 // keep the list short: English, Hindi and the phone's own language
@@ -93,12 +90,15 @@ final class Speech {
                 String tag = loc.toLanguageTag();
                 int n = perLocale.merge(tag, 1, Integer::sum);
                 boolean local = !v.isNetworkConnectionRequired();
+                java.util.regex.Matcher m = googleName.matcher(v.getName());
                 try {
                     list.put(new JSONObject()
                             .put("id", v.getName())
                             .put("name", (google ? "Google " : "") + "Voice " + n + (local ? "" : " Online"))
                             .put("lang", tag)
                             .put("local", local)
+                            .put("quality", v.getQuality())
+                            .put("speaker", m.matches() ? m.group(1) : "")
                             .put("default", def != null && def.getName().equals(v.getName())));
                 } catch (JSONException ignored) { }
             }

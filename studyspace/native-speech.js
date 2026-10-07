@@ -69,7 +69,8 @@
     let m; try { m = JSON.parse(e.data); } catch (_) { return; }
     if (!m || m.ch !== 'tts') return;
     if (m.ev === 'voices') {
-      voices = (m.voices || []).map((v) => Object.freeze({ voiceURI: v.id, name: v.name, lang: v.lang, localService: !!v.local, default: !!v.default }));
+      // quality (Android: 500 very high … 100 very low) and speaker (Google: the same person online and offline)
+      voices = (m.voices || []).map((v) => Object.freeze({ voiceURI: v.id, name: v.name, lang: v.lang, localService: !!v.local, default: !!v.default, quality: v.quality || 0, speaker: v.speaker || '' }));
       synth._emit('voiceschanged');
       return;
     }

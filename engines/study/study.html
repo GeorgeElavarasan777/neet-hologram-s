@@ -485,7 +485,7 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
   .hdr-brand { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
   .hdr h1 { max-width: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #hdrSubject { max-width: 40vw; }
-  .hdr-tools { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 6px; align-items: center; }
+  .hdr-tools { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 6px; align-items: center; } /* voice + ▶ Hear on row 1, speed + count on row 2 */
   .hdr-tools > * { min-height: 38px; }
   #btnHome { min-width: 40px; justify-content: center; }
   #btnHome .lbl { display: none; }
@@ -679,6 +679,7 @@ body.wide-view .pane { border-radius: 0; border: none; }
     <div class="hdr-tools">
       <button class="btn ghost sm" id="btnHome" title="Back to library" aria-label="Library">⌂<span class="lbl"> Library</span></button>
       <select class="sel" id="voiceSel" aria-label="Voice"></select>
+      <button class="btn ghost sm" id="voicePreview" title="Hear this voice" aria-label="Hear this voice">▶ Hear</button>
       <select class="sel" id="rateSel" aria-label="Speed">
         <option value="0.8">0.8×</option><option value="0.9">0.9×</option><option value="1" selected>1×</option><option value="1.15">1.15×</option><option value="1.3">1.3×</option><option value="1.5">1.5×</option>
       </select>
@@ -2021,42 +2022,80 @@ const Voice = {
     speechSynthesis.onvoiceschanged = fill;
     setTimeout(fill, 600); setTimeout(fill, 2000);
   },
+  // the most human-sounding voice wins: natural/online (neural) voices first, then quality, Indian English preferred
+  natural(v) { return !v.localService || /natural|neural|premium|enhanced|wavenet|studio/i.test(v.name) || (v.quality || 0) >= 500; },
   rank(v) {
     const n = (v.name + ' ' + v.lang).toLowerCase();
     let r = 0;
     if (/en[-_]in/.test(n)) r += 40;
     if (/neerja|prabhat|heera|ravi/.test(n)) r += 20;
-    if (/natural|online|neural|premium|enhanced/.test(n)) r += 15;
+    if (this.natural(v)) r += navigator.onLine === false && !v.localService ? -30 : 25; // online voices need the internet
+    if ((v.quality || 0) >= 400) r += 6;
     if (/^en/.test(v.lang.toLowerCase())) r += 10;
     if (/google/.test(n)) r += 4;
     if (/microsoft/.test(n)) r += 3;
+    if (v.default) r += 2;
     return r;
   },
   populate() {
     const sel = $('#voiceSel'); if (!sel) return;
-    const list = this.voices.slice().sort((a, b) => this.rank(b) - this.rank(a));
-    const prev = HS.settings.voiceURI;
-    sel.innerHTML = list.map((v) => `<option value="${esc(v.voiceURI)}">${esc(this.shortName(v))}</option>`).join('');
-    const chosen = list.find((v) => v.voiceURI === prev) || list[0];
+    this._letters = this.speakerLetters(this.voices);
+    // best first; equal voices in a steady A, B, C… order
+    const list = this.voices.slice().sort((a, b) => this.rank(b) - this.rank(a) || this.shortName(a).localeCompare(this.shortName(b)));
+    const opt = (v) => `<option value="${esc(v.voiceURI)}">${esc(this.shortName(v))}</option>`;
+    const nat = list.filter((v) => this.natural(v)), off = list.filter((v) => !this.natural(v));
+    sel.innerHTML = nat.length && off.length
+      ? `<optgroup label="Natural voices — most human${nat.some((v) => !v.localService) ? ' (online)' : ''}">${nat.map(opt).join('')}</optgroup><optgroup label="Offline voices">${off.map(opt).join('')}</optgroup>`
+      : list.map(opt).join('');
+    // keep the student's own pick; otherwise always start with the most natural voice available
+    const prev = HS.settings.voicePicked ? list.find((v) => v.voiceURI === HS.settings.voiceURI) : null;
+    const chosen = prev || list[0];
     if (chosen) { sel.value = chosen.voiceURI; HS.settings.voiceURI = chosen.voiceURI; }
     UI.renderRail && UI.renderRail();
   },
+  // Google names voices by speaker code (en-in-x-ene-network): give each speaker a letter per language
+  speakerLetters(list) {
+    const out = new Map(), per = new Map();
+    for (const v of list.slice().sort((a, b) => (a.speaker || a.name).localeCompare(b.speaker || b.name))) {
+      if (!v.speaker) continue; const k = v.lang + '|' + v.speaker;
+      if (!out.has(k)) { const n = (per.get(v.lang) || 0); per.set(v.lang, n + 1); out.set(k, String.fromCharCode(65 + n)); }
+    }
+    return out;
+  },
   shortName(v) {
-    let name = v.name.replace(/^Microsoft\s+/i, '').replace(/^Google\s+/i, 'Google ').replace(/\s*\(Natural\)\s*/i, '').replace(/\s+Online/i, '').replace(/\s*-\s*English\s*\(.*\)$/i, '');
     const lang = v.lang.replace('_', '-');
-    const region = { 'en-IN': 'Indian English', 'en-GB': 'British English', 'en-US': 'US English', 'en-AU': 'Australian English', 'hi-IN': 'Hindi' }[lang] || lang;
-    return `${name} · ${region}`;
+    const region = { 'en-IN': 'Indian English', 'en-GB': 'British English', 'en-US': 'US English', 'en-AU': 'Australian English', 'en-NG': 'Nigerian English', 'hi-IN': 'Hindi' }[lang] || lang;
+    const letter = v.speaker && this._letters && this._letters.get(v.lang + '|' + v.speaker);
+    if (letter) return `${region} · Voice ${letter} · ${!v.localService ? 'Natural (online)' : (v.quality || 0) >= 400 ? 'Offline HD' : 'Offline'}`;
+    if (/-language$/.test(v.voiceURI)) return `${region} · Standard · Offline`; // the engine's default voice for the language
+    let name = v.name.replace(/^Microsoft\s+/i, '').replace(/^Google\s+/i, 'Google ').replace(/\s*\(Natural\)\s*/i, '').replace(/\s+Online/i, '').replace(/\s*-\s*English\s*\(.*\)$/i, '');
+    return `${name} · ${region}${this.natural(v) ? ' · Natural' : ''}`;
+  },
+  // same person offline (Google), else any offline voice in the same language
+  offlineFor(v) { return this.voices.find((x) => x.localService && v.speaker && x.speaker === v.speaker && x.lang === v.lang) || this.voices.find((x) => x.localService && x.lang === v.lang) || null; },
+  preview() {
+    if (!this.supported) return toast('Speech is not available here.', true);
+    if (Player.playing) Player.stop();
+    const v = this.current();
+    this.speak(`Hello! I'm ${v ? this.shortName(v).split(' · ').slice(0, 2).join(', ') : 'your study voice'}. I'll read your chapters aloud, and highlight each word as I go.`, {});
   },
   current() { return this.voices.find((v) => v.voiceURI === HS.settings.voiceURI) || this.voices[0] || null; },
-  speak(text, handlers = {}) {
+  speak(text, handlers = {}, voice) {
     if (!this.supported) return null;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    const v = this.current(); if (v) { u.voice = v; u.lang = v.lang; }
+    const v = voice || this.current(); if (v) { u.voice = v; u.lang = v.lang; }
     u.rate = HS.settings.rate || 1; u.pitch = 1;
     u.onboundary = (e) => handlers.onBoundary && handlers.onBoundary(e);
     u.onend = () => { this._stopKeepAlive(); handlers.onEnd && handlers.onEnd(); };
-    u.onerror = (e) => { this._stopKeepAlive(); if (e.error !== 'interrupted' && e.error !== 'canceled') handlers.onError && handlers.onError(e); };
+    u.onerror = (e) => {
+      this._stopKeepAlive();
+      if (e.error === 'interrupted' || e.error === 'canceled') return;
+      // a natural (online) voice without internet: carry on with the offline version of the same voice
+      const alt = v && !v.localService && !voice ? this.offlineFor(v) : null;
+      if (alt) { if (!this._warned) { this._warned = true; toast('No internet — using the offline version of this voice for now.'); } this.speak(text, handlers, alt); return; }
+      handlers.onError && handlers.onError(e);
+    };
     this._u = u; // keep a reference: Chrome garbage-collects utterances mid-speech otherwise
     speechSynthesis.speak(u);
     this._keepAlive(v);
@@ -2739,7 +2778,8 @@ const UI = {
     $('#btnHome').addEventListener('click', () => this.showLanding());
     $('#chapterRail').addEventListener('click', (e) => { const b = e.target.closest('[data-ch]'); if (b) this.selectChapter(+b.dataset.ch); });
     $('#tabs').addEventListener('click', (e) => { const b = e.target.closest('[data-tab]'); if (b) this.setTab(b.dataset.tab); });
-    $('#voiceSel').addEventListener('change', (e) => { HS.settings.voiceURI = e.target.value; saveSettings(); this.renderRail(); if (Player.playing) Player.play(Player.idx); });
+    $('#voiceSel').addEventListener('change', (e) => { HS.settings.voiceURI = e.target.value; HS.settings.voicePicked = true; saveSettings(); this.renderRail(); if (Player.playing) Player.play(Player.idx); else Voice.preview(); });
+    $('#voicePreview').addEventListener('click', () => Voice.preview());
     $('#rateSel').addEventListener('change', (e) => { HS.settings.rate = parseFloat(e.target.value); saveSettings(); this.renderRail(); if (Player.playing) Player.play(Player.idx); });
     $('#sfxBtn').addEventListener('click', () => { HS.settings.sfx = !HS.settings.sfx; saveSettings(); $('#sfxBtn').textContent = HS.settings.sfx ? '🔈' : '🔇'; SFX.play('ok'); });
     $('#holoSpin').addEventListener('click', () => { this.holoMain.spin = !this.holoMain.spin; $('#holoSpin').classList.toggle('on', this.holoMain.spin); });
