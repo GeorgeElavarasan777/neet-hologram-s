@@ -247,6 +247,22 @@ kbd { font-family: var(--font-mono); font-size: 10px; background: #e6eef8; color
 /* ───────── listen pane ───────── */
 .listen { display: flex; flex: 1; min-height: 0; }
 .notes-list { width: 300px; flex-shrink: 0; border-right: 1px solid var(--border); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.sec-group { display: flex; flex-direction: column; border-radius: 10px; }
+.sec-group + .sec-group, .note-btn.intro + .sec-group { margin-top: 2px; }
+.sec-head { display: flex; align-items: stretch; gap: 4px; position: sticky; top: 0; z-index: 1; background: var(--panel); border-radius: 10px; }
+.sec-toggle { flex: 1; min-width: 0; display: grid; grid-template-columns: 14px auto minmax(0, 1fr) auto; align-items: center; gap: 8px; text-align: left; padding: 9px 8px; border-radius: 10px; min-height: 42px; color: var(--text-2); font-size: 13px; }
+.sec-toggle:hover, .sec-toggle:focus-visible { background: var(--card); color: var(--text); }
+.sec-toggle .chev { color: var(--muted); font-size: 15px; line-height: 1; transition: transform .18s; display: inline-block; }
+.sec-group.open .sec-toggle .chev { transform: rotate(90deg); color: var(--subject); }
+.sec-toggle .sn { font-family: var(--font-mono); font-size: 11px; color: var(--subject); }
+.sec-toggle .st { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.sec-group.cur .sec-toggle .st { color: var(--text); }
+.sec-toggle .sc { font-family: var(--font-mono); font-size: 10.5px; color: var(--muted); padding: 1px 7px; border-radius: 20px; border: 1px solid var(--border); white-space: nowrap; }
+.sec-toggle .sc.done { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); }
+.sec-play { width: 40px; flex-shrink: 0; border-radius: 10px; color: var(--muted); font-size: 12px; display: grid; place-items: center; }
+.sec-play:hover, .sec-play:focus-visible { background: var(--card); color: var(--subject); }
+.sec-notes { display: flex; flex-direction: column; gap: 2px; padding: 2px 0 6px 22px; border-left: 2px solid var(--border); margin-left: 14px; }
+.sec-group.cur .sec-notes { border-left-color: rgba(var(--subject-rgb), 0.5); }
 .sec-label { font-family: var(--font-mono); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim); padding: 10px 8px 4px; position: sticky; top: 0; background: var(--panel); z-index: 1; }
 .note-btn { display: flex; gap: 8px; align-items: flex-start; width: 100%; text-align: left; padding: 7px 8px; border-radius: 8px; color: var(--text-2); font-size: 12.5px; line-height: 1.35; transition: 0.15s; }
 .note-btn:hover { background: var(--card); color: #fff; }
@@ -2422,7 +2438,7 @@ const UI = {
     if (name === 'holo' && this.holoMain) { this.holoMain.resize(); }
   },
   selectChapter(i, opts = {}) {
-    const d = HS.doc; if (!d) return;
+    const d = HS.doc; if (!d || !HS.progress) return;
     i = clamp(i, 0, d.chapters.length - 1);
     if (i !== HS.chapterIdx) { Player.stop(); Player.idx = 0; }
     HS.chapterIdx = i;
@@ -2435,18 +2451,42 @@ const UI = {
   },
 
   // ───────── listen ─────────
+  // the chapter's notes, grouped the way the chapter is: one group per section (key points: one group)
+  listenGroups(c, list) {
+    const groups = [], byKey = new Map();
+    list.forEach((x, i) => {
+      if (x.intro) return;
+      const key = HS.settings.keyOnly ? 'key' : String(x.sec);
+      let g = byKey.get(key);
+      if (!g) {
+        const st = !HS.settings.keyOnly && c.sections[x.sec], raw = st ? st.title : (HS.settings.keyOnly ? 'Key points' : 'Chapter text');
+        const m = /^(\d+(?:\.\d+)*)\.?\s+(.+)$/.exec(raw);
+        g = { key, num: m ? m[1] : (HS.settings.keyOnly ? '★' : '§' + (groups.length + 1)), title: m ? m[2] : raw, idx: [] };
+        byKey.set(key, g); groups.push(g);
+      }
+      g.idx.push(i);
+    });
+    return groups;
+  },
   renderListen() {
     const c = this.chapter(); const pane = $('#pane-listen'); if (!c) return;
     const list = Player.list(); const n = list[Player.idx] || list[0];
     const heardIn = this.heardCount(c);
     const mins = Math.round(list.reduce((a, x) => a + x.words, 0) / 150 / (HS.settings.rate || 1));
     const listEl = $('.notes-list', pane); const scroll = listEl ? listEl.scrollTop : 0;
-    let lastSec = -2; const items = [];
-    list.forEach((x, i) => {
-      if (x.sec !== lastSec && !x.intro) { lastSec = x.sec; const st = c.sections[x.sec]; items.push(`<div class="sec-label">${esc(st ? st.title : (HS.settings.keyOnly ? 'Key points' : 'Chapter text'))}</div>`); }
-      const heard = !x.intro && HS.progress.heard[x.id];
-      items.push(`<button class="note-btn ${i === Player.idx ? 'active' : ''} ${x.intro ? 'intro' : ''}" data-note="${i}"><span class="n">${x.intro ? '◈' : String(i).padStart(2, '0')}</span><span class="t">${esc(x.text)}</span>${heard ? '<span class="h">✓</span>' : ''}</button>`);
-    });
+    const noteBtn = (x, i) => { const heard = !x.intro && HS.progress.heard[x.id]; return `<button class="note-btn ${i === Player.idx ? 'active' : ''} ${x.intro ? 'intro' : ''}" data-note="${i}"><span class="n">${x.intro ? '◈' : String(i).padStart(2, '0')}</span><span class="t">${esc(x.intro ? 'Chapter briefing — what this chapter covers' : x.text)}</span>${heard ? '<span class="h">✓</span>' : ''}</button>`; };
+    const groups = this.listenGroups(c, list), curG = groups.find((g) => g.idx.includes(Player.idx));
+    const open = this._secOpen || (this._secOpen = new Set());
+    if (curG) open.add(c.n + ':' + curG.key); // the section being read is always open
+    const items = [];
+    if (list[0] && list[0].intro) items.push(noteBtn(list[0], 0));
+    for (const g of groups) {
+      const k = c.n + ':' + g.key, isOpen = open.has(k), h = g.idx.filter((i) => HS.progress.heard[list[i].id]).length, done = h === g.idx.length;
+      items.push(`<div class="sec-group ${isOpen ? 'open' : ''} ${g === curG ? 'cur' : ''}" data-sec="${esc(g.key)}">
+        <div class="sec-head"><button class="sec-toggle" data-sec-toggle="${esc(g.key)}" aria-expanded="${isOpen}"><span class="chev" aria-hidden="true">›</span><span class="sn">${esc(g.num)}</span><span class="st">${esc(g.title)}</span><span class="sc ${done ? 'done' : ''}">${done ? '✓ ' : ''}${h}/${g.idx.length}</span></button>
+          <button class="sec-play" data-sec-play="${g.idx[0]}" aria-label="Play section ${esc(g.num)} from the start" title="Play this section">▶</button></div>
+        <div class="sec-notes" ${isOpen ? '' : 'hidden'}>${g.idx.map((i) => noteBtn(list[i], i)).join('')}</div></div>`);
+    }
     const words = n ? this.wordSpans(n.text) : '';
     const playing = Player.playing && !Player.paused;
     pane.innerHTML = `
@@ -2456,7 +2496,7 @@ const UI = {
         <div class="notes-list">${items.join('')}</div>
         <div class="player">
           <div class="now-card">
-            <div class="meta"><span class="hud">${n && n.intro ? 'Chapter briefing' : `Note ${Player.idx} / ${list.length - 1}`}${n && n.page ? ` · page ${n.page}` : ''}</span><div class="vu ${playing ? 'live' : ''}"><i></i><i></i><i></i><i></i><i></i></div></div>
+            <div class="meta"><span class="hud">${n && n.intro ? 'Chapter briefing' : curG ? `${esc(curG.num)} · note ${curG.idx.indexOf(Player.idx) + 1} of ${curG.idx.length}` : `Note ${Player.idx} / ${list.length - 1}`}${n && n.page ? ` · page ${n.page}` : ''}</span><div class="vu ${playing ? 'live' : ''}"><i></i><i></i><i></i><i></i><i></i></div></div>
             <div class="now-text" id="nowText">${words}</div>
             <div class="meta"><span class="eyebrow">${n && !n.intro && c.sections[n.sec] ? esc(c.sections[n.sec].title) : (n && n.intro ? 'Generated briefing' : 'Chapter text')}</span>
               ${n && !n.intro ? `<button class="btn sm ghost" id="markHeard">${HS.progress.heard[n.id] ? '✓ Heard' : 'Mark heard'}</button>` : ''}</div>
@@ -2479,6 +2519,12 @@ const UI = {
     const act = $('.note-btn.active', nl);
     if (act && this._lastActiveNote !== Player.idx) { act.scrollIntoView({ block: 'nearest' }); this._lastActiveNote = Player.idx; }
     $$('.note-btn', pane).forEach((b) => b.addEventListener('click', () => Player.play(+b.dataset.note)));
+    $$('[data-sec-toggle]', pane).forEach((b) => b.addEventListener('click', () => {
+      const g = b.closest('.sec-group'), k = c.n + ':' + b.dataset.secToggle, on = !g.classList.contains('open');
+      g.classList.toggle('open', on); b.setAttribute('aria-expanded', String(on)); $('.sec-notes', g).hidden = !on;
+      if (on) open.add(k); else open.delete(k);
+    }));
+    $$('[data-sec-play]', pane).forEach((b) => b.addEventListener('click', () => Player.play(+b.dataset.secPlay)));
     $('#pPlay', pane).addEventListener('click', () => Player.toggle());
     $('#pPrev', pane).addEventListener('click', () => Player.prev());
     $('#pNext', pane).addEventListener('click', () => Player.next());
@@ -3247,7 +3293,8 @@ Meiosis is the type of cell division that produces gametes with half the number 
       if (!ch) return;
       let tries = 0;
       const tick = () => {
-        if (HS.doc && HS.doc.chapters && HS.doc.chapters.length) {
+        // wait until the document AND its saved progress are loaded (loadDoc awaits the progress)
+        if (HS.doc && HS.doc.chapters && HS.doc.chapters.length && HS.progress && !$('#app').hidden) {
           let idx = HS.doc.chapters.findIndex((c) => String(c.n) === String(ch));
           if (idx < 0) idx = Math.min(HS.doc.chapters.length - 1, Math.max(0, parseInt(ch, 10) - 1));
           if (idx >= 0 && typeof UI.selectChapter === 'function') UI.selectChapter(idx);

@@ -31,6 +31,12 @@
     scrim.onclick = () => sheet(null);
     q('#chapterRail').addEventListener('click', (e) => { if (e.target.closest('[data-ch]')) setTimeout(() => sheet(null), 60); });
     q('#btnHome').addEventListener('click', () => sheet(null));
+    // listening options live in the ⋯ sheet on phones (the Listen tab keeps only the player and the notes)
+    const opts = document.createElement('div'); opts.id = 'mOpts';
+    opts.innerHTML = `<span class="mo-label">Listening</span><button class="m-opt" id="mKeyOnly" aria-pressed="false">Key points only</button><button class="m-opt" id="mAutoAdv" aria-pressed="false">Auto-advance</button>`;
+    q('.hdr').appendChild(opts);
+    q('#mKeyOnly').onclick = () => { const H = hs(), P = pl(); H.settings.keyOnly = !H.settings.keyOnly; saveSettings(); P.stop(); P.idx = 0; ui().renderListen(); ui().renderRail(); update(); };
+    q('#mAutoAdv').onclick = () => { const H = hs(); H.settings.autoAdvance = !H.settings.autoAdvance; saveSettings(); update(); };
     // the floating reader control
     mini = document.createElement('div'); mini.id = 'mPlayer';
     mini.innerHTML = `<button class="mp-btn" id="mpPrev" aria-label="Previous page">‹</button>
@@ -71,7 +77,7 @@
     wrap('renderRead', () => update());
     // every player change re-renders Listen: keep the Read control in step and turn the page with the voice
     wrap('renderListen', () => {
-      const P = pl(), H = hs(); updatePlay();
+      const P = pl(), H = hs(); updatePlay(); if (H.tab === 'listen') update();
       if (on() && H.tab === 'read' && P.playing && !P.paused) { const n = P.note(); if (n && n.page && n.page !== H.page) U.gotoPage(n.page); }
     });
     // calmer loading card on phones
@@ -99,7 +105,12 @@
     const c = U.chapter(); if (!c) return;
     const total = H.doc.pageCount || Math.max(...H.doc.chapters.map((x) => x.endPage));
     q('#mTitle').textContent = `${c.n}. ${c.title}`;
-    q('#mSub').textContent = H.tab === 'read' ? `${TAB.read} · page ${H.page} of ${total}` : `${TAB[H.tab] || ''} · ${H.doc.title || ''}`;
+    let sub = `${TAB[H.tab] || ''} · ${H.doc.title || ''}`;
+    if (H.tab === 'read') sub = `${TAB.read} · page ${H.page} of ${total}`;
+    else if (H.tab === 'listen' && pl()) { const list = pl().list(), mins = Math.round(list.reduce((a, x) => a + (x.words || 0), 0) / 150 / (H.settings.rate || 1)); sub = `${TAB.listen} · ${list.length - 1} notes · ~${mins} min · ${U.heardCount(c)} heard`; }
+    q('#mSub').textContent = sub;
+    const ko = q('#mKeyOnly'), aa = q('#mAutoAdv');
+    if (ko) { ko.setAttribute('aria-pressed', String(!!H.settings.keyOnly)); aa.setAttribute('aria-pressed', String(!!H.settings.autoAdvance)); }
     q('#mpPage').textContent = `Page ${H.page} / ${total}`;
     const secs = c.sections || [], cur = [...secs].reverse().find((s) => s.page <= H.page);
     q('#mpSec').textContent = cur ? cur.title : `Chapter ${c.n}`;
@@ -132,7 +143,22 @@
 
   const css = document.createElement('style');
   css.textContent = `
-  #mBar, #mScrim, #mPlayer, #mCxBar { display: none; }
+  #mBar, #mScrim, #mPlayer, #mCxBar, #mOpts { display: none; }
+  /* ⋯ sheet: listening options */
+  body.m-ui #mOpts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; grid-column: 1 / -1; padding-top: 4px; border-top: 1px solid var(--border); margin-top: 2px; }
+  .mo-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+  .m-opt { min-height: 38px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--card); color: var(--text-2); font-size: 13px; }
+  .m-opt[aria-pressed="true"] { color: var(--text); border-color: var(--chrome); background: var(--chrome-soft); }
+  .m-opt[aria-pressed="true"]::before { content: '✓ '; color: var(--chrome); }
+  /* Listen on phones: just the player and the notes (title, stats and options are in the app bar / ⋯ sheet) */
+  body.m-ui #pane-listen .lhead { display: none; }
+  body.m-ui .now-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto; column-gap: 10px; row-gap: 8px; align-items: center; }
+  body.m-ui .now-card > .meta { display: contents; }
+  body.m-ui .now-card .hud { grid-column: 1; grid-row: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  body.m-ui .now-card .vu { display: none; }
+  body.m-ui .now-card #markHeard { grid-column: 2; grid-row: 1; min-height: 32px; padding: 3px 12px; font-size: 12.5px; border-radius: 999px; }
+  body.m-ui .now-card .now-text { grid-column: 1 / -1; grid-row: 2; align-self: stretch; }
+  body.m-ui .now-card .eyebrow { display: none; } /* the card's top line already says which section (e.g. 1.2) */
   body.m-ui #mCxBar:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 12px 16px; border-top: 1px solid var(--border); background: var(--panel); color: var(--text); font-size: 14px; flex-shrink: 0; text-align: left; }
   body.m-ui #mCxBar b { color: var(--chrome); font-size: 18px; }
   body.m-ui.m-cx-collapsed #cxPanel { display: none; }
@@ -218,6 +244,19 @@
   body.m-ui.m-land .tabs button.active { background: var(--chrome-soft); border-color: transparent; }
   body.m-ui.m-land .tabs .cnt { position: absolute; top: 1px; right: 2px; font-size: 9px; padding: 0 4px; }
   body.m-ui.m-land #pane-read .reader-view { padding-bottom: 76px; }
+  body.m-ui.m-land .listen { flex-direction: row; }
+  body.m-ui.m-land .notes-list { width: 42%; max-width: 380px; padding: 4px 8px; gap: 0; }
+  body.m-ui.m-land .sec-notes { padding-left: 14px; margin-left: 10px; }
+  body.m-ui.m-land .note-btn { padding: 6px 6px; font-size: 12.5px; }
+  body.m-ui.m-land .note-btn .t { -webkit-line-clamp: 1; }
+  body.m-ui.m-land .notes-list .sec-label { padding: 8px 6px 2px; font-size: 9.5px; }
+  body.m-ui.m-land .listen .player { padding: 8px 12px 8px; gap: 8px; }
+  body.m-ui.m-land .now-card { padding: 10px 14px; flex: 1 1 auto; min-height: 0; }
+  body.m-ui.m-land .now-card .eyebrow { display: none; }
+  body.m-ui.m-land .now-text { font-size: 16px; line-height: 1.5; }
+  body.m-ui.m-land .transport { gap: 6px; }
+  body.m-ui.m-land .transport .btn.icon { width: 42px; height: 42px; min-height: 42px; }
+  body.m-ui.m-land .transport .big { width: 46px; height: 46px; }
   body.m-ui.m-land #mPlayer { bottom: 8px; padding: 4px; width: min(420px, calc(100% - 24px)); grid-template-columns: 40px minmax(0, 1fr) 46px 40px; }
   body.m-ui.m-land .mp-play { width: 44px; height: 44px; font-size: 17px; }
   body.m-ui.m-land .mp-btn { width: 40px; height: 40px; }
