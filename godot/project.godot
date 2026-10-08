@@ -1,0 +1,58 @@
+; HoloStudy — Godot edition (NCERT Class 11 & 12: Listen, Read, Holograms, Summary, Practice)
+; Content in res://content is produced by tools/godot-content.mjs from the web app; on the Web export it is
+; served next to index.html and fetched on demand (see scripts/app.gd → App.fetch_bytes).
+
+config_version=5
+
+[application]
+
+config/name="HoloStudy"
+config/description="NCERT Class 11 & 12 study space: voice notes, reading, 3-D holograms, recall quizzes and practice."
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/icon.svg"
+boot_splash/bg_color=Color(0.0588235, 0.0666667, 0.0823529, 1)
+boot_splash/show_image=false
+config/windows_native_icon=""
+
+[audio]
+
+general/text_to_speech=true
+
+[autoload]
+
+App="*res://scripts/app.gd"
+Speech="*res://scripts/speech.gd"
+
+[display]
+
+window/size/viewport_width=412
+window/size/viewport_height=860
+window/stretch/mode="disabled"
+window/handheld/orientation=6
+window/dpi/allow_hidpi=true
+window/energy_saving/keep_screen_on=false
+
+[gui]
+
+common/drop_mouse_on_gui_input_disabled=true
+timers/tooltip_delay_sec=0.8
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=true
+pointing/emulate_touch_from_mouse=false
+
+[physics]
+
+common/physics_ticks_per_second=30
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method.web="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+environment/defaults/default_clear_color=Color(0.0588235, 0.0666667, 0.0823529, 1)
+anti_aliasing/quality/msaa_3d=1
+2d/snap/snap_2d_transforms_to_pixel=false

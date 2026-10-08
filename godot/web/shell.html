@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0f1115">
+<meta name="description" content="HoloStudy — NCERT Class 11 & 12: voice notes, reading, 3-D holograms, recall quizzes and practice.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="HoloStudy">
+<title>$GODOT_PROJECT_NAME</title>
+<style>
+html, body, #canvas { margin: 0; padding: 0; border: 0; }
+html, body { height: 100%; background: #0f1115; overscroll-behavior: none; }
+body { color: #e9ecf2; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+#canvas { display: block; }
+#canvas:focus { outline: none; }
+#status { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 35%, #172437 0%, #0f1115 62%); visibility: hidden; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.card { width: min(320px, 82vw); text-align: center; }
+.mark { width: 84px; height: 84px; margin: 0 auto 18px; }
+.mark svg { width: 100%; height: 100%; filter: drop-shadow(0 0 18px rgba(79, 209, 232, .35)); }
+.name { font-size: 22px; font-weight: 700; letter-spacing: .2px; }
+.sub { font-size: 13px; color: #828a99; margin-top: 4px; }
+.bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; margin: 22px 0 8px; }
+.bar i { display: block; height: 100%; width: 0; background: #4fd1e8; border-radius: 3px; transition: width .2s; }
+.bar.wait i { width: 35%; animation: slide 1.1s ease-in-out infinite alternate; }
+@keyframes slide { from { transform: translateX(-60%); } to { transform: translateX(240%); } }
+.pct { font: 12px ui-monospace, "SFMono-Regular", Consolas, monospace; color: #828a99; min-height: 16px; }
+#status-notice { display: none; margin-top: 18px; background: #3b1d24; border: 1px solid #9b3943; border-radius: 12px; padding: 12px 14px; font-size: 14px; line-height: 1.4; color: #f3d6db; }
+</style>
+$GODOT_HEAD_INCLUDE
+</head>
+<body>
+<canvas id="canvas">Your browser does not support the canvas tag.</canvas>
+<noscript>HoloStudy needs JavaScript.</noscript>
+<div id="status">
+  <div class="card">
+    <div class="mark"><svg viewBox="0 0 128 128" aria-hidden="true"><ellipse cx="64" cy="98" rx="34" ry="9" fill="none" stroke="#4fd1e8" stroke-width="4" opacity=".9"/><path d="M64 22 L94 39 L94 73 L64 90 L34 73 L34 39 Z" fill="#4fd1e8" fill-opacity=".14" stroke="#4fd1e8" stroke-width="5" stroke-linejoin="round"/><path d="M64 56 L94 39 M64 56 L34 39 M64 56 L64 90" stroke="#9eeaf6" stroke-width="4" stroke-linecap="round"/></svg></div>
+    <div class="name">HoloStudy</div>
+    <div class="sub">NCERT Class 11 &amp; 12 · Listen · Read · Holograms</div>
+    <div class="bar wait" id="bar"><i id="fill"></i></div>
+    <div class="pct" id="pct">Getting ready…</div>
+    <div id="status-notice"></div>
+  </div>
+</div>
+<script src="$GODOT_URL"></script>
+<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+const engine = new Engine(GODOT_CONFIG);
+(function () {
+  const overlay = document.getElementById('status'), bar = document.getElementById('bar'), fill = document.getElementById('fill'), pct = document.getElementById('pct'), notice = document.getElementById('status-notice');
+  let initializing = true;
+  overlay.style.visibility = 'visible';
+  function fail(err) {
+    console.error(err);
+    notice.textContent = err instanceof Error ? err.message : (typeof err === 'string' ? err : 'Something went wrong while starting.');
+    notice.style.display = 'block';
+    bar.style.display = 'none';
+    pct.textContent = '';
+    initializing = false;
+  }
+  const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+  if (missing.length !== 0) {
+    fail('This browser is missing what HoloStudy needs:\n' + missing.join(', ') + '\nTry the latest Chrome, Edge, Firefox or Safari.');
+    return;
+  }
+  engine.startGame({
+    onProgress: function (current, total) {
+      if (current > 0 && total > 0) {
+        bar.classList.remove('wait');
+        fill.style.width = Math.round(current / total * 100) + '%';
+        pct.textContent = 'Loading ' + (current / 1048576).toFixed(1) + ' / ' + (total / 1048576).toFixed(1) + ' MB';
+      } else {
+        bar.classList.add('wait');
+      }
+    },
+  }).then(() => { overlay.remove(); initializing = false; }, fail);
+}());
+</script>
+</body>
+</html>
