@@ -11,6 +11,7 @@ func _ready() -> void:
 	name = "Home"
 	build("HoloStudy", "NCERT Class 11 & 12 · NEET & boards", false)
 	add_action("search", "Search chapters and holograms", _open_search, "SearchBtn")
+	add_action("sun", "Theme and text size", Appearance.open, "AppearanceBtn")
 	col = UI.vbox(14)
 	body.add_child(UI.scroller(UI.pad(col, 16, 18, 16, 28)))
 	render()
@@ -35,7 +36,7 @@ func _fit_columns() -> void:
 func render() -> void:
 	UI.clear(col)
 	var last: String = App.data.get("last", "")
-	var hello := UI.label("Welcome back" if last != "" else "Welcome to HoloStudy", 24, UI.TEXT, UI.f_bold)
+	var hello := UI.label("Welcome back" if last != "" else "Welcome to HoloStudy", 27, UI.TEXT, UI.f_serif_semi)
 	col.add_child(hello)
 	col.add_child(UI.label("Listen to every chapter, read it page by page, turn the diagrams in 3-D, then check yourself.", 14, UI.TEXT2, null, true))
 	if last != "":
@@ -67,7 +68,7 @@ func render() -> void:
 	var b := UI.bar(total / maxf(1, n), UI.ACCENT, 6)
 	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	overall.add_child(b)
-	overall.add_child(UI.label("%d%%" % int(round(total / maxf(1, n) * 100)), 13, UI.TEXT2, UI.f_mono))
+	overall.add_child(UI.label("%d%%" % int(round(total / maxf(1, n) * 100)), 13, UI.TEXT2, UI.f_med))
 	col.add_child(UI.spacer(0, 2))
 	col.add_child(overall)
 
@@ -135,7 +136,7 @@ func _subject_card(s: Dictionary) -> Control:
 	var pb := UI.bar(f, color, 6)
 	pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	prow.add_child(pb)
-	prow.add_child(UI.label("%d%%" % int(round(f * 100)), 13, UI.TEXT2, UI.f_mono))
+	prow.add_child(UI.label("%d%%" % int(round(f * 100)), 13, UI.TEXT2, UI.f_med))
 	b.add_child(prow)
 	c.tapped.connect(func() -> void: App.push(SubjectScreen.new(s.key)))
 	return c

@@ -26,7 +26,7 @@ func _ready() -> void:
 	var col := UI.vbox(12)
 	_switch = UI.hbox(8)
 	col.add_child(_switch)
-	list = UI.vbox(10)
+	list = UI.margin_list(10)
 	col.add_child(list)
 	body.add_child(UI.scroller(UI.pad(col, 16, 14, 16, 28)))
 	render()
@@ -50,7 +50,7 @@ func render() -> void:
 	var cl: Dictionary = s.classes[cls_idx]
 	set_titles(s.name, "Class %s · %d chapters" % [cl.cls, cl.chapters.size()])
 	for ch in cl.chapters:
-		list.add_child(_chapter_card(cl, ch, color))
+		list.add_child(UI.margin_row(str(int(ch.no)), color, _chapter_card(cl, ch, color)))
 
 
 func _chapter_card(cl: Dictionary, ch: Dictionary, color: Color) -> Control:
@@ -58,18 +58,9 @@ func _chapter_card(cl: Dictionary, ch: Dictionary, color: Color) -> Control:
 	var c := TapCard.new(14, UI.CARD, 16)
 	c.name = "Chapter%d" % int(ch.no)
 	var row := UI.hbox(12)
-	var num := PanelContainer.new()
-	num.add_theme_stylebox_override("panel", UI.sb(Color(color, 0.14), 10, Color(color, 0.35), 1, Vector4()))
-	num.custom_minimum_size = Vector2(40, 40)
-	var nl := UI.label(str(int(ch.no)), 15, color, UI.f_mono)
-	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	nl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	num.add_child(nl)
-	num.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	row.add_child(num)
 	var t := UI.vbox(3)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	t.add_child(UI.label(ch.title, 16, UI.TEXT, UI.f_semi, true))
+	t.add_child(UI.label(ch.title, 17, UI.TEXT, UI.f_serif_semi, true))
 	var holos: int = ch.get("holograms", []).size()
 	var meta := "%s · %s" % [UI.plural(int(ch.get("pages", 0)), "page"), UI.plural(int(ch.get("sections", 0)), "section")]
 	if holos > 0:
@@ -82,7 +73,7 @@ func _chapter_card(cl: Dictionary, ch: Dictionary, color: Color) -> Control:
 		pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		prow.add_child(pb)
 		var heard := App.heard_count(k)
-		prow.add_child(UI.label("%d heard" % heard, 11, UI.MUTED, UI.f_mono))
+		prow.add_child(UI.label("%d heard" % heard, 12, UI.MUTED, UI.f_med))
 		t.add_child(prow)
 	row.add_child(t)
 	row.add_child(UI.icon_rect("chev", 18, UI.MUTED))

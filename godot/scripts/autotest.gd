@@ -362,6 +362,20 @@ func _run() -> void:
 		_step("second Back leaves, the game can be continued", ok)
 	await _back()
 	_step("Back returns home", _top().name == "Home")
+	# 11 · appearance: Calm night, then back to Calm
+	await _tap("AppearanceBtn", "theme and text size")
+	ok = await _wait(func(): return App.main.has_sheet() and _find("Theme_calm_night") != null)
+	_step("the Appearance sheet lists the themes", ok)
+	await _shot("appearance")
+	await _tap("Theme_calm_night", "Calm night")
+	ok = await _wait(func(): return UI.palette == "calm_night" and _top().name == "Home" and not App.main.has_sheet())
+	_step("Calm night applies", ok)
+	await _shot("home-night")
+	await _tap("AppearanceBtn", "theme and text size")
+	await _wait(func(): return _find("Theme_calm") != null)
+	await _tap("Theme_calm", "Calm")
+	ok = await _wait(func(): return UI.palette == "calm" and _top().name == "Home")
+	_step("Calm applies again", ok)
 
 
 func _moving_node(hv: HoloView) -> Node3D:

@@ -16,8 +16,9 @@ var _pressed: StyleBoxFlat
 func _init(pad := 16, bg := UI.CARD, radius := 16, border := UI.BORDER) -> void:
 	var p := Vector4(pad, pad, pad, pad)
 	_normal = UI.sb(bg, radius, border, 1, p)
-	_hover = UI.sb(bg.lightened(0.035), radius, UI.BORDER2, 1, p)
-	_pressed = UI.sb(bg.lightened(0.07), radius, UI.ACCENT.darkened(0.3), 1, p)
+	var base := bg if bg.a > 0.01 else UI.BG
+	_hover = UI.sb(base.lerp(UI.TEXT, 0.035) if bg.a > 0.01 else UI.HOVER, radius, UI.BORDER2 if border.a > 0 else Color(0, 0, 0, 0), 1, p)
+	_pressed = UI.sb(base.lerp(UI.TEXT, 0.07) if bg.a > 0.01 else UI.PRESS, radius, Color(UI.ACCENT, 0.55) if border.a > 0 else Color(0, 0, 0, 0), 1, p)
 	add_theme_stylebox_override("panel", _normal)
 	mouse_filter = Control.MOUSE_FILTER_PASS
 	mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND

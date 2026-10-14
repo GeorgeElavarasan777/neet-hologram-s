@@ -135,7 +135,7 @@ func find_chapter(pack: String, no: int) -> Dictionary:
 
 func _defaults() -> Dictionary:
 	return {"v": 1, "chapters": {}, "holos": {}, "practice": {}, "last": "",
-		"settings": {"rate": 1.0, "voice": "", "auto_advance": true, "key_only": false, "text_size": 1.0, "labels": true}}
+		"settings": {"rate": 1.0, "voice": "", "auto_advance": true, "key_only": false, "text_size": 1.0, "labels": true, "theme": "calm"}}
 
 
 func _load_progress() -> void:

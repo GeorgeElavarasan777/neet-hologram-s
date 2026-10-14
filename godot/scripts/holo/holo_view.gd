@@ -76,6 +76,7 @@ uniform vec4 albedo : source_color = vec4(1.0);
 void fragment() { ALBEDO = albedo.rgb * 1.15; }
 """
 static var _shaders := {}
+const STAGE_ACCENT := Color("#8ec5f0") # labels and leader lines on the dark stage, whatever the theme
 
 
 func _ready() -> void:
@@ -429,7 +430,10 @@ func _make_pills() -> void:
 		b.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		b.custom_minimum_size = Vector2(0, 28)
 		var pad := Vector4(9, 3, 9, 3)
-		UI._btn_styles(b, UI.sb(Color(0.03, 0.07, 0.13, 0.86), 999, Color(UI.ACCENT, 0.55), 1, pad), UI.sb(Color(0.05, 0.12, 0.2, 0.95), 999, UI.ACCENT, 1, pad), UI.sb(Color(0.06, 0.16, 0.26, 0.98), 999, UI.ACCENT, 1, pad))
+		UI._btn_styles(b, UI.sb(Color(0.03, 0.07, 0.13, 0.86), 999, Color(STAGE_ACCENT, 0.55), 1, pad), UI.sb(Color(0.05, 0.12, 0.2, 0.95), 999, STAGE_ACCENT, 1, pad), UI.sb(Color(0.06, 0.16, 0.26, 0.98), 999, STAGE_ACCENT, 1, pad))
+		# the stage is always dark (a projection screen), so its labels keep light text in every theme
+		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color"]:
+			b.add_theme_color_override(k, Color("#e8f4ff"))
 		b.pressed.connect(_pill_pressed.bind(i))
 		_overlay.add_child(b)
 		_pills.append({"node": n, "pill": b, "i": i})
@@ -520,10 +524,10 @@ func _draw_leaders() -> void:
 		var a: Vector2 = p.anchor
 		var r := Rect2(b.position, b.size)
 		var end := Vector2(r.position.x + r.size.x if a.x > r.get_center().x else r.position.x, r.get_center().y)
-		var c := Color(UI.ACCENT, 0.7 * b.modulate.a)
+		var c := Color(STAGE_ACCENT, 0.7 * b.modulate.a)
 		_overlay.draw_line(end, a, c, 1.2, true)
 		_overlay.draw_circle(a, 3.2, Color(1, 1, 1, 0.9 * b.modulate.a))
-		_overlay.draw_circle(a, 5.5, Color(UI.ACCENT, 0.3 * b.modulate.a))
+		_overlay.draw_circle(a, 5.5, Color(STAGE_ACCENT, 0.3 * b.modulate.a))
 
 
 func pause_render(paused: bool) -> void:

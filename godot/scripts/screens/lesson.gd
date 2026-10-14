@@ -132,7 +132,7 @@ func _style_tabs() -> void:
 		var on: bool = t == tab
 		var bg := Color(color, 0.14) if on else Color(0, 0, 0, 0)
 		var s := UI.sb(bg, 12, Color(0, 0, 0, 0), 0, Vector4(4, 6, 4, 4))
-		UI._btn_styles(b, s, UI.sb(Color(1, 1, 1, 0.05) if not on else bg, 12, Color(0, 0, 0, 0), 0, Vector4(4, 6, 4, 4)), s)
+		UI._btn_styles(b, s, UI.sb(UI.HOVER if not on else bg, 12, Color(0, 0, 0, 0), 0, Vector4(4, 6, 4, 4)), s)
 		var c := color if on else UI.MUTED
 		for k in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color"]:
 			b.add_theme_color_override(k, c if not k.contains("hover") or on else UI.TEXT2)
@@ -220,7 +220,7 @@ func subject_color() -> Color:
 func _chapters_sheet() -> void:
 	if pack.is_empty():
 		return
-	var box := UI.vbox(6)
+	var box := UI.margin_list(6)
 	box.name = "ChapterList"
 	var color := subject_color()
 	for i in pack.chapters.size():
@@ -229,10 +229,9 @@ func _chapters_sheet() -> void:
 		var tc := TapCard.new(12, UI.CARD2 if i == ch_idx else UI.CARD, 12, color if i == ch_idx else UI.BORDER)
 		tc.name = "Ch%d" % int(c.n)
 		var row := UI.hbox(10)
-		row.add_child(UI.label(str(int(c.n)), 14, color, UI.f_mono))
-		var t := UI.vbox(2)
+		var t := UI.vbox(4)
 		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		t.add_child(UI.label(c.title, 15, UI.TEXT, UI.f_semi, true))
+		t.add_child(UI.label(c.title, 16, UI.TEXT, UI.f_serif_semi, true))
 		var pb := UI.bar(App.chapter_fraction(k), color, 3)
 		t.add_child(pb)
 		row.add_child(t)
@@ -240,7 +239,7 @@ func _chapters_sheet() -> void:
 		tc.tapped.connect(func() -> void:
 			App.main.close_sheet()
 			select_chapter(i))
-		box.add_child(tc)
+		box.add_child(UI.margin_row(str(int(c.n)), color, tc))
 	App.main.open_sheet(pack.get("title", "Chapters"), box)
 
 
@@ -296,15 +295,11 @@ func _options_sheet() -> void:
 				Speech.speak("This is how your notes will sound."))
 			vlist.add_child(b)
 		box.add_child(vlist)
-	box.add_child(UI.eyebrow("Text size"))
-	var sizes := HFlowContainer.new()
-	sizes.add_theme_constant_override("h_separation", 8)
-	for z in [[0.9, "Small"], [1.0, "Normal"], [1.12, "Large"], [1.25, "Larger"]]:
-		var b := UI.btn(z[1], "chip_on" if is_equal_approx(float(App.setting("text_size", 1.0)), z[0]) else "chip")
-		b.pressed.connect(func() -> void:
-			App.set_setting("text_size", z[0])
-			App.main.close_sheet()
-			App.main._on_resize())
-		sizes.add_child(b)
-	box.add_child(sizes)
+	var look := UI.btn("Theme and text size", "card", "sun")
+	look.name = "AppearanceBtn"
+	look.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	look.pressed.connect(func() -> void:
+		App.main.close_sheet()
+		Appearance.open())
+	box.add_child(look)
 	App.main.open_sheet("Options", box)

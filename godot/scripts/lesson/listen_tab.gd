@@ -66,7 +66,7 @@ func _build() -> void:
 	_now.size_flags_vertical = Control.SIZE_EXPAND_FILL if _wide else Control.SIZE_FILL
 	var nb := UI.vbox(8)
 	var hud_row := UI.hbox(8)
-	_hud = UI.line("", 11, color, UI.f_mono)
+	_hud = UI.line("", 12, color, UI.f_med)
 	hud_row.add_child(_hud)
 	_heard_btn = UI.btn("Mark heard", "chip", "check", UI.GOOD)
 	_heard_btn.name = "MarkHeard"
@@ -79,7 +79,7 @@ func _build() -> void:
 	tscroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	tscroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tscroll.custom_minimum_size.y = 156 if not _wide else 80
-	_text = UI.rich(19, UI.TEXT)
+	_text = UI.rich(19, UI.TEXT, true)
 	_text.name = "NowText"
 	_text.add_theme_constant_override("line_separation", 8)
 	tscroll.add_child(_text)
@@ -87,7 +87,7 @@ func _build() -> void:
 	_now.add_child(nb)
 	playercol.add_child(_now)
 	var prow := UI.hbox(10)
-	_count = UI.label("", 11, UI.MUTED, UI.f_mono)
+	_count = UI.label("", 12, UI.MUTED, UI.f_med)
 	prow.add_child(_count)
 	_progress = UI.bar(0, color, 4)
 	_progress.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -106,10 +106,7 @@ func _build() -> void:
 	transport.add_child(prev)
 	_play = UI.icon_btn("play", "Play", 68, "card", 28)
 	_play.name = "Play"
-	var round_n := UI.sb(Color("#e5e9f0"), 34, Color(0, 0, 0, 0), 0, Vector4())
-	UI._btn_styles(_play, round_n, UI.sb(Color.WHITE, 34, Color(0, 0, 0, 0), 0, Vector4()), UI.sb(Color("#cfd5df"), 34, Color(0, 0, 0, 0), 0, Vector4()))
-	for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color"]:
-		_play.add_theme_color_override(k, Color("#0f1115"))
+	UI.style_play(_play, 34)
 	_play.pressed.connect(player.toggle)
 	transport.add_child(_play)
 	var nxt := UI.icon_btn("next", "Next note", 52, "card")
@@ -223,7 +220,7 @@ func _group_node(g: Dictionary) -> Control:
 	var is_open: bool = _open.has(g.key)
 	var chev := UI.icon_rect("down" if is_open else "chev", 16, color if is_open else UI.MUTED)
 	row.add_child(chev)
-	row.add_child(UI.label(g.num, 12, color, UI.f_mono))
+	row.add_child(UI.label(g.num, 12, color, UI.f_med))
 	var cur: bool = player.idx in g.idx
 	row.add_child(UI.line(g.title, 14, UI.TEXT if cur else UI.TEXT2, UI.f_semi))
 	var heard := 0
@@ -233,7 +230,7 @@ func _group_node(g: Dictionary) -> Control:
 	var done: bool = heard == g.idx.size()
 	var pill := PanelContainer.new()
 	pill.add_theme_stylebox_override("panel", UI.sb(Color(0, 0, 0, 0), 999, Color(UI.GOOD, 0.5) if done else UI.BORDER2, 1, Vector4(8, 1, 8, 1)))
-	pill.add_child(UI.label(("✓ " if done else "") + "%d/%d" % [heard, g.idx.size()], 11, UI.GOOD if done else UI.MUTED, UI.f_mono))
+	pill.add_child(UI.label(("✓ " if done else "") + "%d/%d" % [heard, g.idx.size()], 12, UI.GOOD if done else UI.MUTED, UI.f_med))
 	row.add_child(pill)
 	UI.box(toggle).add_child(row)
 	head.add_child(toggle)
@@ -273,7 +270,7 @@ func _note_row(i: int) -> Control:
 	c.name = "Note%d" % i
 	var row := UI.hbox(8)
 	var intro: bool = n.get("intro", false)
-	var num := UI.label("◈" if intro else "%02d" % i, 11, UI.MUTED, UI.f_mono)
+	var num := UI.label("◈" if intro else "%02d" % i, 12, UI.MUTED, UI.f_med)
 	num.custom_minimum_size.x = 22
 	num.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	row.add_child(num)
@@ -308,10 +305,10 @@ func _refresh() -> void:
 	var g := _group_of(player.idx)
 	var hud := ""
 	if n.get("intro", false):
-		hud = "CHAPTER BRIEFING"
+		hud = "Chapter briefing"
 	elif not g.is_empty():
-		hud = "%s · NOTE %d OF %d" % [g.num, g.idx.find(player.idx) + 1, g.idx.size()]
-	hud += " · PAGE %d" % int(n.get("p", 0))
+		hud = "%s · note %d of %d" % [g.num, g.idx.find(player.idx) + 1, g.idx.size()]
+	hud += " · page %d" % int(n.get("p", 0))
 	_hud.text = hud
 	var heard := player.is_heard(player.idx)
 	_heard_btn.visible = not n.get("intro", false)
@@ -340,8 +337,9 @@ func _render_text() -> void:
 	if _word.x < 0 or _word.x >= t.length():
 		_text.text = UI.esc(t)
 		return
-	var hi := lesson.subject_color().to_html(false)
-	_text.text = UI.esc(t.substr(0, _word.x)) + "[bgcolor=#%s40][color=#ffffff]" % hi + UI.esc(t.substr(_word.x, _word.y - _word.x)) + "[/color][/bgcolor]" + UI.esc(t.substr(_word.y))
+	# the spoken word: a soft wash of the subject colour, the ink stays readable
+	var hi := Color(lesson.subject_color(), 0.32 if UI.DARK else 0.2).to_html(true)
+	_text.text = UI.esc(t.substr(0, _word.x)) + "[bgcolor=#%s]" % hi + UI.esc(t.substr(_word.x, _word.y - _word.x)) + "[/bgcolor]" + UI.esc(t.substr(_word.y))
 
 
 func _on_word(a: int, b: int) -> void:

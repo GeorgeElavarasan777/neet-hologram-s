@@ -27,7 +27,7 @@ func _ready() -> void:
 	_filters.add_theme_constant_override("h_separation", 6)
 	_filters.add_theme_constant_override("v_separation", 6)
 	col.add_child(_filters)
-	_count = UI.label("", 12, UI.MUTED, UI.f_mono)
+	_count = UI.label("", 12, UI.MUTED, UI.f_med)
 	col.add_child(_count)
 	_list = UI.vbox(8)
 	_list.name = "Figures"

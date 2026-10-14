@@ -83,7 +83,7 @@ func _build_control() -> void:
 	var mid := UI.vbox(0)
 	mid.custom_minimum_size.x = 150
 	mid.alignment = BoxContainer.ALIGNMENT_CENTER
-	_page_l = UI.label("", 13, UI.TEXT, UI.f_mono)
+	_page_l = UI.label("", 13, UI.TEXT, UI.f_med)
 	_page_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sec_l = UI.line("", 11, UI.MUTED, UI.f_med)
 	_sec_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -93,9 +93,7 @@ func _build_control() -> void:
 	row.add_child(mid)
 	_play = UI.icon_btn("play", "Read this page aloud", 52, "card", 24)
 	_play.name = "ReadAloud"
-	UI._btn_styles(_play, UI.sb(Color("#e5e9f0"), 26, Color(0, 0, 0, 0), 0, Vector4()), UI.sb(Color.WHITE, 26, Color(0, 0, 0, 0), 0, Vector4()), UI.sb(Color("#cfd5df"), 26, Color(0, 0, 0, 0), 0, Vector4()))
-	for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color"]:
-		_play.add_theme_color_override(k, Color("#0f1115"))
+	UI.style_play(_play, 26)
 	_play.pressed.connect(_read_aloud)
 	row.add_child(_play)
 	var nxt := UI.icon_btn("chev", "Next page", 48)
@@ -147,18 +145,18 @@ func _render() -> void:
 		if int(b.p) != page:
 			continue
 		if b.k == "h2":
-			var h := UI.label(str(b.t), 21, UI.TEXT, UI.f_bold, true)
+			var h := UI.label(str(b.t), 22, UI.TEXT, UI.f_serif_semi, true)
 			h.add_theme_constant_override("line_spacing", 2)
 			_col.add_child(UI.spacer(0, 4))
 			_col.add_child(h)
 		else:
-			var r := UI.rich(17, Color("#dfe3ea"))
-			r.add_theme_constant_override("line_separation", 9)
+			var r := UI.rich(18, UI.TEXT, true)
+			r.add_theme_constant_override("line_separation", 10)
 			r.text = _with_terms(str(b.t), used, color)
 			r.meta_underlined = false
 			r.meta_clicked.connect(_term_clicked)
 			_col.add_child(r)
-	var end := UI.label("— page %d —" % page, 11, UI.MUTED, UI.f_mono)
+	var end := UI.label("— page %d —" % page, 12, UI.MUTED, UI.f_med)
 	end.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_col.add_child(end)
 	var i := pages.find(page)
@@ -185,7 +183,7 @@ func _with_terms(text: String, used: Dictionary, color: Color) -> String:
 	spans.sort_custom(func(a, b): return a.x < b.x)
 	var out := ""
 	var at := 0
-	var hex := color.lightened(0.25).to_html(false)
+	var hex := (color.lightened(0.25) if UI.DARK else color).to_html(false)
 	for s in spans:
 		out += UI.esc(text.substr(at, s.x - at))
 		out += "[url=%d][color=#%s][u]%s[/u][/color][/url]" % [s.z, hex, UI.esc(text.substr(s.x, s.y - s.x))]

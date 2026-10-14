@@ -179,6 +179,8 @@ func _show_question() -> void:
 		return
 	var q: Dictionary = r.qs[int(r.i)]
 	var color := Color(str(q.get("color", "#4fd1e8")))
+	if not UI.DARK: # the bank's chapter colours are bright (made for dark screens): deepen them on paper
+		color = color.darkened(0.5)
 	set_titles("Practice", "Tap & answer · question %d of %d" % [int(r.i) + 1, r.qs.size()])
 	var top := UI.hbox(10)
 	var leave := UI.btn("Save & exit", "card", "back")
@@ -191,7 +193,7 @@ func _show_question() -> void:
 	var pb := UI.bar(float(r.i) / r.qs.size(), color, 6)
 	pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	top.add_child(pb)
-	top.add_child(UI.label("%d/%d  ✓%d  streak %d" % [int(r.i) + 1, r.qs.size(), int(r.score), int(r.streak)], 12, UI.MUTED, UI.f_mono))
+	top.add_child(UI.label("%d/%d  ✓%d  streak %d" % [int(r.i) + 1, r.qs.size(), int(r.score), int(r.streak)], 12, UI.MUTED, UI.f_med))
 	_col.add_child(top)
 	var tags := HFlowContainer.new()
 	tags.add_theme_constant_override("h_separation", 6)
@@ -200,10 +202,10 @@ func _show_question() -> void:
 			continue
 		var p := PanelContainer.new()
 		p.add_theme_stylebox_override("panel", UI.sb(Color(color, 0.1), 8, Color(color, 0.5), 1, Vector4(8, 3, 8, 3)))
-		p.add_child(UI.label(t.to_upper(), 11, color, UI.f_mono))
+		p.add_child(UI.label(t, 12, color, UI.f_med))
 		tags.add_child(p)
 	_col.add_child(tags)
-	_col.add_child(UI.label(str(q.q), 22, UI.TEXT, UI.f_semi, true))
+	_col.add_child(UI.label(str(q.q), 23, UI.TEXT, UI.f_serif_semi, true))
 	var opts := UI.vbox(10)
 	opts.name = "Options"
 	_answered = int(r.get("picked", -1)) >= 0
@@ -218,7 +220,7 @@ func _show_question() -> void:
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var letter := PanelContainer.new()
 		letter.add_theme_stylebox_override("panel", UI.sb(UI.BG, 8, Color(0, 0, 0, 0), 0, Vector4(10, 4, 10, 4)))
-		letter.add_child(UI.label(char(65 + i), 14, UI.TEXT2, UI.f_mono))
+		letter.add_child(UI.label(char(65 + i), 14, UI.TEXT2, UI.f_med))
 		letter.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(letter)
 		var ol := UI.label(str(q.options[i]), 18, UI.TEXT, UI.f_med)

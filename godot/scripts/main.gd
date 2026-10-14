@@ -9,17 +9,18 @@ var _sheet: Control
 var _toast: PanelContainer
 var _toast_tween: Tween
 var _scale := 1.0
+var _bg: ColorRect
 
 
 func _ready() -> void:
 	App.main = self
 	_apply_scale()
 	get_viewport().size_changed.connect(_on_resize)
-	var bg := ColorRect.new()
-	bg.color = UI.BG
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
+	_bg = ColorRect.new()
+	_bg.color = UI.BG
+	_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_bg)
 	host = Control.new()
 	host.set_anchors_preset(Control.PRESET_FULL_RECT)
 	host.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -47,8 +48,30 @@ func _apply_scale() -> void:
 	if absf(s - _scale) > 0.01 or UI.theme == null:
 		_scale = s
 		get_window().content_scale_factor = s
+		UI.set_palette(str(App.setting("theme", "calm")))
 		theme = UI.setup(s)
 		get_window().theme = theme
+		RenderingServer.set_default_clear_color(UI.BG)
+		if _bg:
+			_bg.color = UI.BG
+
+
+## a new theme or text size: rebuild every page in the new look (and reopen the lesson that was open)
+func restyle() -> void:
+	var reopen: Array = []
+	if not stack.is_empty() and stack.back() is LessonScreen:
+		var l: LessonScreen = stack.back()
+		reopen = [l.pack_id, l.ch_no, l.tab]
+	_close_now()
+	for s in stack:
+		host.remove_child(s)
+		s.queue_free()
+	stack.clear()
+	_scale = -1.0
+	_apply_scale()
+	push(HomeScreen.new())
+	if not reopen.is_empty():
+		push(LessonScreen.new(reopen[0], reopen[1], reopen[2]))
 
 
 func _on_resize() -> void:
@@ -234,8 +257,8 @@ func toast(text: String, seconds := 2.6) -> void:
 	if _toast:
 		_toast.queue_free()
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", UI.sb(Color("#0f1a2e"), 999, UI.ACCENT, 1, Vector4(16, 9, 16, 9)))
-	var l := UI.label(text, 14, UI.TEXT)
+	p.add_theme_stylebox_override("panel", UI.sb(UI.TEXT, 999, Color(0, 0, 0, 0), 0, Vector4(16, 9, 16, 9)))
+	var l := UI.label(text, 14, UI.BG)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	p.add_child(l)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE

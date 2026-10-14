@@ -1,4 +1,4 @@
-"""Fonts for the Godot edition: Inter + JetBrains Mono, plus small Noto fallbacks, cut down to exactly the
+"""Fonts for the Godot edition: Inter (interface), Literata (reading), JetBrains Mono, plus small Noto fallbacks, cut down to exactly the
 characters in godot/content (Greek, sub/superscripts, math) so the web download stays small (~340 KB).
 Run after tools/godot-content.mjs whenever the content changes:   python tools/godot-fonts.py
 Needs fontTools (pip install fonttools). Source fonts are downloaded once into tools/fonts-src/ (SIL OFL)."""
@@ -16,6 +16,7 @@ OUT = os.path.join(ROOT, 'godot', 'assets', 'fonts')
 FONTS = {
     'Inter[opsz,wght].ttf': 'ofl/inter/Inter%5Bopsz,wght%5D.ttf',
     'JetBrainsMono[wght].ttf': 'ofl/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf',
+    'Literata[opsz,wght].ttf': 'ofl/literata/Literata%5Bopsz,wght%5D.ttf',
     'NotoSans[wdth,wght].ttf': 'ofl/notosans/NotoSans%5Bwdth,wght%5D.ttf',
     'NotoSansMath-Regular.ttf': 'ofl/notosansmath/NotoSansMath-Regular.ttf',
     'NotoSansSymbols2-Regular.ttf': 'ofl/notosanssymbols2/NotoSansSymbols2-Regular.ttf',
@@ -61,6 +62,8 @@ def cut(src, dst, want):
 
 
 rest = chars - cut('Inter[opsz,wght].ttf', 'Inter.ttf', chars)
+# reading face (notes, pages, questions): whatever Literata lacks falls back to Inter, then Noto
+cut('Literata[opsz,wght].ttf', 'Literata.ttf', chars)
 cut('JetBrainsMono[wght].ttf', 'JetBrainsMono.ttf', {chr(c) for c in range(32, 127)} | set('·•–—…×÷±→←✓✗°₂'))
 rest -= cut('NotoSans[wdth,wght].ttf', 'NotoSans-fallback.ttf', rest)
 rest -= cut('NotoSansMath-Regular.ttf', 'NotoSansMath-fallback.ttf', rest)

@@ -88,7 +88,7 @@ func _render() -> void:
 		_col.add_child(flow)
 	# ── every chapter (tap to go)
 	_col.add_child(UI.eyebrow("Chapters in this book"))
-	var list := UI.vbox(6)
+	var list := UI.margin_list(6)
 	list.name = "Mission"
 	for i in lesson.pack.chapters.size():
 		var c: Dictionary = lesson.pack.chapters[i]
@@ -96,16 +96,15 @@ func _render() -> void:
 		var tc := TapCard.new(12, UI.CARD2 if i == lesson.ch_idx else UI.CARD, 12, color if i == lesson.ch_idx else UI.BORDER)
 		tc.name = "Mission%d" % int(c.n)
 		var row := UI.hbox(10)
-		row.add_child(UI.label("%02d" % int(c.n), 12, color, UI.f_mono))
-		var tt := UI.vbox(3)
+		var tt := UI.vbox(4)
 		tt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		tt.add_child(UI.line(c.title, 14, UI.TEXT, UI.f_semi))
+		tt.add_child(UI.line(c.title, 15, UI.TEXT, UI.f_serif_semi))
 		tt.add_child(UI.bar(App.chapter_fraction(k), color, 3))
 		row.add_child(tt)
-		row.add_child(UI.label("%d%%" % int(round(App.chapter_fraction(k) * 100)), 11, UI.MUTED, UI.f_mono))
+		row.add_child(UI.label("%d%%" % int(round(App.chapter_fraction(k) * 100)), 12, UI.MUTED, UI.f_med))
 		UI.box(tc).add_child(row)
 		tc.tapped.connect(_mission.bind(i))
-		list.add_child(tc)
+		list.add_child(UI.margin_row(str(int(c.n)), color, tc))
 	_col.add_child(list)
 
 
@@ -114,7 +113,7 @@ func _stat(big: String, small: String, color: Color) -> Control:
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	var a := UI.label(big, 20, color, UI.f_bold)
 	a.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	var b := UI.label(small, 11, UI.MUTED, UI.f_mono)
+	var b := UI.label(small, 12, UI.MUTED, UI.f_med)
 	b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(a)
 	v.add_child(b)
@@ -182,8 +181,8 @@ func _question() -> void:
 	_answered = false
 	var qs: Array = lesson.ch.quiz.slice(0, 8)
 	var q: Dictionary = qs[_qi]
-	_quiz_box.add_child(UI.label("QUESTION %d OF %d" % [_qi + 1, qs.size()], 11, lesson.subject_color(), UI.f_mono))
-	_quiz_box.add_child(UI.label(str(q.q), 16, UI.TEXT, null, true))
+	_quiz_box.add_child(UI.label("Question %d of %d" % [_qi + 1, qs.size()], 12, lesson.subject_color(), UI.f_med))
+	_quiz_box.add_child(UI.label(str(q.q), 18, UI.TEXT, UI.f_serif, true))
 	var opts := UI.vbox(8)
 	opts.name = "Options"
 	for i in q.o.size():

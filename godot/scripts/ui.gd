@@ -3,20 +3,78 @@ extends RefCounted
 ## The HoloStudy look in one place: colours, fonts, the theme, line icons (SVG, drawn at the screen's
 ## pixel density so they stay sharp) and small builders used by every screen.
 
-const BG := Color("#0f1115")
-const PANEL := Color("#15181e")
-const CARD := Color("#1c2028")
-const CARD2 := Color("#232834")
-const BORDER := Color("#2a2f3a")
-const BORDER2 := Color("#363c49")
-const TEXT := Color("#e9ecf2")
-const TEXT2 := Color("#bcc2ce")
-const MUTED := Color("#828a99")
-const ACCENT := Color("#4fd1e8")
-const GOOD := Color("#4ade80")
-const BAD := Color("#f87171")
-const WARN := Color("#fbbf24")
-const SUBJECT := {"physics": Color("#22d3ee"), "chemistry": Color("#f472b6"), "biology": Color("#4ade80")}
+# Palettes. "calm" (default): a ruled study notebook — cool paper, blue-black ink, a fountain-pen blue for
+# actions and the notebook's rose margin line. "calm_night": the same notebook in deep slate ink for
+# evening study. "hologram": the original dark cyan look.
+const PALETTES := {
+	"calm": {"dark": false, "bg": "#eef2f1", "panel": "#f8faf9", "card": "#f8faf9", "card2": "#e6ecec", "border": "#d5dee0", "border2": "#bcc8cc",
+		"text": "#1f2a30", "text2": "#46555e", "muted": "#63737b", "accent": "#2f5d8c", "good": "#3f7a5c", "bad": "#a8474f", "warn": "#9a6a12", "margin": "#c46b78",
+		"physics": "#336b9c", "chemistry": "#8e4f84", "biology": "#3f7a5c"},
+	"calm_night": {"dark": true, "bg": "#1b2228", "panel": "#20282f", "card": "#222b32", "card2": "#2a343c", "border": "#33404a", "border2": "#425260",
+		"text": "#e3e9ec", "text2": "#b0bdc4", "muted": "#8b9aa2", "accent": "#8db4da", "good": "#7fb89a", "bad": "#d98a92", "warn": "#d3ae62", "margin": "#b87a84",
+		"physics": "#7fb0d9", "chemistry": "#c49abd", "biology": "#8ec0a2"},
+	"hologram": {"dark": true, "bg": "#0f1115", "panel": "#15181e", "card": "#1c2028", "card2": "#232834", "border": "#2a2f3a", "border2": "#363c49",
+		"text": "#e9ecf2", "text2": "#bcc2ce", "muted": "#828a99", "accent": "#4fd1e8", "good": "#4ade80", "bad": "#f87171", "warn": "#fbbf24", "margin": "#4fd1e8",
+		"physics": "#22d3ee", "chemistry": "#f472b6", "biology": "#4ade80"},
+}
+const PALETTE_NAMES := {"calm": "Calm", "calm_night": "Calm night", "hologram": "Hologram"}
+
+static var palette := "calm"
+static var DARK := false
+static var BG := Color("#eef2f1")
+static var PANEL := Color("#f8faf9")
+static var CARD := Color("#f8faf9")
+static var CARD2 := Color("#e6ecec")
+static var BORDER := Color("#d5dee0")
+static var BORDER2 := Color("#bcc8cc")
+static var TEXT := Color("#1f2a30")
+static var TEXT2 := Color("#46555e")
+static var MUTED := Color("#63737b")
+static var ACCENT := Color("#2f5d8c")
+static var GOOD := Color("#3f7a5c")
+static var BAD := Color("#a8474f")
+static var WARN := Color("#9a6a12")
+static var MARGIN := Color("#c46b78") # the notebook margin rule
+static var HOVER := Color(0, 0, 0, 0.05) # tints over any surface
+static var PRESS := Color(0, 0, 0, 0.09)
+static var TRACK := Color(0, 0, 0, 0.08) # empty part of progress bars
+static var ON_ACCENT := Color.WHITE # text on a filled accent button
+static var SUBJECT := {"physics": Color("#336b9c"), "chemistry": Color("#8e4f84"), "biology": Color("#3f7a5c")}
+
+
+static func set_palette(name: String) -> void:
+	if not PALETTES.has(name):
+		name = "calm"
+	palette = name
+	var p: Dictionary = PALETTES[name]
+	DARK = p.dark
+	BG = Color(p.bg)
+	PANEL = Color(p.panel)
+	CARD = Color(p.card)
+	CARD2 = Color(p.card2)
+	BORDER = Color(p.border)
+	BORDER2 = Color(p.border2)
+	TEXT = Color(p.text)
+	TEXT2 = Color(p.text2)
+	MUTED = Color(p.muted)
+	ACCENT = Color(p.accent)
+	GOOD = Color(p.good)
+	BAD = Color(p.bad)
+	WARN = Color(p.warn)
+	MARGIN = Color(p.margin)
+	var tint := Color.WHITE if DARK else Color(0.06, 0.1, 0.13)
+	HOVER = Color(tint, 0.06)
+	PRESS = Color(tint, 0.11)
+	TRACK = Color(tint, 0.1 if DARK else 0.09)
+	SUBJECT = {"physics": Color(p.physics), "chemistry": Color(p.chemistry), "biology": Color(p.biology)}
+	ON_ACCENT = on_color(ACCENT)
+
+
+## readable text colour on a filled background
+static func on_color(bg: Color) -> Color:
+	return Color("#0b1418") if bg.get_luminance() > 0.5 else Color.WHITE
+
+
 const SUBJECT_ICON := {"physics": "atom", "chemistry": "flask", "biology": "leaf"}
 const HOLO_SUB := {"phy": "physics", "chem": "chemistry", "bio": "biology"}
 
@@ -26,6 +84,8 @@ static var f_med: FontVariation
 static var f_semi: FontVariation
 static var f_bold: FontVariation
 static var f_mono: FontVariation
+static var f_serif: FontVariation # reading: notes, pages, questions, headings
+static var f_serif_semi: FontVariation
 static var scale := 1.0 # device pixel ratio × user size (icons are rasterised at this density)
 static var _icons := {}
 
@@ -74,18 +134,24 @@ static func setup(ui_scale: float) -> Theme:
 	_icons.clear()
 	var inter: FontFile = load("res://assets/fonts/Inter.ttf")
 	var mono: FontFile = load("res://assets/fonts/JetBrainsMono.ttf")
+	var serif: FontFile = load("res://assets/fonts/Literata.ttf")
 	var fallbacks: Array[Font] = []
 	for f in ["NotoSans-fallback.ttf", "NotoSansMath-fallback.ttf", "NotoSymbols2-fallback.ttf"]:
 		var ff: FontFile = load("res://assets/fonts/" + f)
 		if ff:
 			fallbacks.append(ff)
 	inter.fallbacks = fallbacks
+	var serif_fb: Array[Font] = [inter]
+	serif_fb.append_array(fallbacks)
+	serif.fallbacks = serif_fb
 	mono.fallbacks = [inter]
 	f_reg = _variant(inter, 420)
 	f_med = _variant(inter, 520)
 	f_semi = _variant(inter, 610)
 	f_bold = _variant(inter, 720)
 	f_mono = _variant(mono, 500)
+	f_serif = _variant(serif, 400)
+	f_serif_semi = _variant(serif, 600)
 	theme = _build_theme()
 	return theme
 
@@ -121,8 +187,8 @@ static func _build_theme() -> Theme:
 	# buttons (a quiet card style; see btn() for the primary / chip / ghost kinds)
 	t.set_stylebox("normal", "Button", sb(CARD, 12, BORDER, 1, Vector4(14, 9, 14, 9)))
 	t.set_stylebox("hover", "Button", sb(CARD2, 12, BORDER2, 1, Vector4(14, 9, 14, 9)))
-	t.set_stylebox("pressed", "Button", sb(CARD2, 12, ACCENT.darkened(0.25), 1, Vector4(14, 9, 14, 9)))
-	t.set_stylebox("hover_pressed", "Button", sb(CARD2, 12, ACCENT.darkened(0.25), 1, Vector4(14, 9, 14, 9)))
+	t.set_stylebox("pressed", "Button", sb(CARD2, 12, Color(ACCENT, 0.6), 1, Vector4(14, 9, 14, 9)))
+	t.set_stylebox("hover_pressed", "Button", sb(CARD2, 12, Color(ACCENT, 0.6), 1, Vector4(14, 9, 14, 9)))
 	t.set_stylebox("disabled", "Button", sb(CARD.darkened(0.2), 12, BORDER, 1, Vector4(14, 9, 14, 9)))
 	var focus := sb(Color(0, 0, 0, 0), 12, ACCENT, 2, Vector4())
 	focus.draw_center = false
@@ -137,15 +203,15 @@ static func _build_theme() -> Theme:
 	t.set_font_size("font_size", "Button", 15)
 	# text input
 	t.set_stylebox("normal", "LineEdit", sb(CARD, 12, BORDER, 1, Vector4(14, 10, 14, 10)))
-	t.set_stylebox("focus", "LineEdit", sb(CARD, 12, ACCENT.darkened(0.2), 1, Vector4(14, 10, 14, 10)))
+	t.set_stylebox("focus", "LineEdit", sb(CARD, 12, Color(ACCENT, 0.7), 1, Vector4(14, 10, 14, 10)))
 	t.set_color("font_color", "LineEdit", TEXT)
 	t.set_color("font_placeholder_color", "LineEdit", MUTED)
 	t.set_color("caret_color", "LineEdit", ACCENT)
 	t.set_color("selection_color", "LineEdit", Color(ACCENT, 0.3))
 	# scroll bars: thin, out of the way
 	var bar := sb(Color(1, 1, 1, 0.0), 4, Color(0, 0, 0, 0), 0, Vector4(0, 0, 0, 0))
-	var grab := sb(Color(1, 1, 1, 0.16), 4, Color(0, 0, 0, 0), 0, Vector4(3, 3, 3, 3))
-	var grab_h := sb(Color(1, 1, 1, 0.3), 4, Color(0, 0, 0, 0), 0, Vector4(3, 3, 3, 3))
+	var grab := sb(Color(TEXT, 0.18), 4, Color(0, 0, 0, 0), 0, Vector4(3, 3, 3, 3))
+	var grab_h := sb(Color(TEXT, 0.32), 4, Color(0, 0, 0, 0), 0, Vector4(3, 3, 3, 3))
 	for s in ["VScrollBar", "HScrollBar"]:
 		t.set_stylebox("scroll", s, bar)
 		t.set_stylebox("scroll_focus", s, bar)
@@ -158,8 +224,8 @@ static func _build_theme() -> Theme:
 	t.set_stylebox("slider", "HSlider", sb(BORDER2, 3, Color(0, 0, 0, 0), 0, Vector4(0, 3, 0, 3)))
 	t.set_stylebox("grabber_area", "HSlider", sb(ACCENT, 3, Color(0, 0, 0, 0), 0, Vector4(0, 3, 0, 3)))
 	t.set_stylebox("grabber_area_highlight", "HSlider", sb(ACCENT, 3, Color(0, 0, 0, 0), 0, Vector4(0, 3, 0, 3)))
-	t.set_icon("grabber", "HSlider", _dot_texture(22, Color.WHITE))
-	t.set_icon("grabber_highlight", "HSlider", _dot_texture(24, Color.WHITE))
+	t.set_icon("grabber", "HSlider", _dot_texture(22, ACCENT))
+	t.set_icon("grabber_highlight", "HSlider", _dot_texture(24, ACCENT))
 	t.set_constant("center_grabber", "HSlider", 1)
 	# rich text (reading, notes)
 	t.set_font("normal_font", "RichTextLabel", f_reg)
@@ -171,7 +237,7 @@ static func _build_theme() -> Theme:
 	t.set_stylebox("focus", "RichTextLabel", StyleBoxEmpty.new())
 	t.set_constant("line_separation", "RichTextLabel", 6)
 	# progress bars
-	t.set_stylebox("background", "ProgressBar", sb(Color(1, 1, 1, 0.08), 3, Color(0, 0, 0, 0), 0, Vector4(0, 0, 0, 0)))
+	t.set_stylebox("background", "ProgressBar", sb(TRACK, 3, Color(0, 0, 0, 0), 0, Vector4(0, 0, 0, 0)))
 	t.set_stylebox("fill", "ProgressBar", sb(ACCENT, 3, Color(0, 0, 0, 0), 0, Vector4(0, 0, 0, 0)))
 	t.set_constant("outline_size", "ProgressBar", 0)
 	t.set_stylebox("panel", "TooltipPanel", sb(CARD2, 8, BORDER2, 1, Vector4(10, 6, 10, 6)))
@@ -181,7 +247,7 @@ static func _build_theme() -> Theme:
 
 static func _dot_texture(px: int, c: Color) -> ImageTexture:
 	var size := int(px * scale)
-	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#%s" stroke="#0f1115" stroke-width="2"/></svg>' % [size, size, c.to_html(false)]
+	var svg := '<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#%s" stroke="#%s" stroke-width="2"/></svg>' % [size, size, c.to_html(false), PANEL.to_html(false)]
 	var img := Image.new()
 	img.load_svg_from_string(svg, 1.0)
 	var tex := ImageTexture.create_from_image(img)
@@ -242,14 +308,19 @@ static func line(text: String, size := 15, color := TEXT, font: Font = null) -> 
 	return l
 
 
+## a small section heading (sentence case)
 static func eyebrow(text: String, color := MUTED) -> Label:
-	var l := label(text.to_upper(), 11, color, f_mono)
+	var l := label(text, 13, color, f_semi)
 	l.add_theme_constant_override("line_spacing", 0)
 	return l
 
 
-static func rich(size := 16, color := TEXT) -> RichTextLabel:
+## serif = the reading face (notes, pages, questions)
+static func rich(size := 16, color := TEXT, serif := false) -> RichTextLabel:
 	var r := RichTextLabel.new()
+	if serif:
+		r.add_theme_font_override("normal_font", f_serif)
+		r.add_theme_font_override("bold_font", f_serif_semi)
 	r.bbcode_enabled = true
 	r.fit_content = true
 	r.scroll_active = false
@@ -282,11 +353,11 @@ static func style_btn(b: Button, kind: String, tint := ACCENT) -> void:
 		"primary":
 			_btn_styles(b, sb(tint, 12, Color(0, 0, 0, 0), 0, pad), sb(tint.lightened(0.12), 12, Color(0, 0, 0, 0), 0, pad), sb(tint.darkened(0.12), 12, Color(0, 0, 0, 0), 0, pad))
 			for c in ["font_color", "font_hover_color", "font_pressed_color", "font_hover_pressed_color", "font_focus_color", "icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color", "icon_focus_color"]:
-				b.add_theme_color_override(c, Color("#071318"))
+				b.add_theme_color_override(c, on_color(tint))
 		"soft":
 			_btn_styles(b, sb(Color(tint, 0.13), 12, Color(tint, 0.35), 1, pad), sb(Color(tint, 0.2), 12, Color(tint, 0.5), 1, pad), sb(Color(tint, 0.28), 12, Color(tint, 0.6), 1, pad))
 		"ghost":
-			_btn_styles(b, sb(Color(0, 0, 0, 0), 12, Color(0, 0, 0, 0), 0, pad), sb(Color(1, 1, 1, 0.06), 12, Color(0, 0, 0, 0), 0, pad), sb(Color(1, 1, 1, 0.1), 12, Color(0, 0, 0, 0), 0, pad))
+			_btn_styles(b, sb(Color(0, 0, 0, 0), 12, Color(0, 0, 0, 0), 0, pad), sb(HOVER, 12, Color(0, 0, 0, 0), 0, pad), sb(PRESS, 12, Color(0, 0, 0, 0), 0, pad))
 		"chip":
 			var cp := Vector4(14, 6, 14, 6)
 			_btn_styles(b, sb(CARD, 999, BORDER2, 1, cp), sb(CARD2, 999, BORDER2, 1, cp), sb(Color(tint, 0.18), 999, tint, 1, cp))
@@ -297,6 +368,14 @@ static func style_btn(b: Button, kind: String, tint := ACCENT) -> void:
 			_btn_styles(b, sb(Color(tint, 0.18), 999, tint, 1, cp2), sb(Color(tint, 0.24), 999, tint, 1, cp2), sb(Color(tint, 0.3), 999, tint, 1, cp2))
 			b.add_theme_font_size_override("font_size", 14)
 			b.custom_minimum_size.y = 36
+
+
+## the round play / pause button: filled with the action colour
+static func style_play(b: Button, radius: int) -> void:
+	var z := Vector4()
+	_btn_styles(b, sb(ACCENT, radius, Color(0, 0, 0, 0), 0, z), sb(ACCENT.lerp(TEXT, 0.12), radius, Color(0, 0, 0, 0), 0, z), sb(ACCENT.lerp(BG, 0.15), radius, Color(0, 0, 0, 0), 0, z))
+	for k in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_hover_pressed_color", "icon_focus_color"]:
+		b.add_theme_color_override(k, ON_ACCENT)
 
 
 static func _btn_styles(b: Button, n: StyleBox, h: StyleBox, p: StyleBox) -> void:
@@ -319,9 +398,9 @@ static func icon_btn(icon_name: String, tip := "", px := 44, kind := "ghost", ic
 	b.mouse_filter = Control.MOUSE_FILTER_PASS
 	var pad := Vector4(0, 0, 0, 0)
 	if kind == "ghost":
-		_btn_styles(b, sb(Color(0, 0, 0, 0), 12, Color(0, 0, 0, 0), 0, pad), sb(Color(1, 1, 1, 0.07), 12, Color(0, 0, 0, 0), 0, pad), sb(Color(1, 1, 1, 0.12), 12, Color(0, 0, 0, 0), 0, pad))
+		_btn_styles(b, sb(Color(0, 0, 0, 0), 12, Color(0, 0, 0, 0), 0, pad), sb(HOVER, 12, Color(0, 0, 0, 0), 0, pad), sb(PRESS, 12, Color(0, 0, 0, 0), 0, pad))
 	else:
-		_btn_styles(b, sb(CARD, 12, BORDER, 1, pad), sb(CARD2, 12, BORDER2, 1, pad), sb(CARD2, 12, ACCENT.darkened(0.25), 1, pad))
+		_btn_styles(b, sb(CARD, 12, BORDER, 1, pad), sb(CARD2, 12, BORDER2, 1, pad), sb(CARD2, 12, Color(ACCENT, 0.6), 1, pad))
 	return b
 
 
@@ -396,6 +475,41 @@ static func badge(icon_name: String, color: Color, px := 40) -> PanelContainer:
 	p.add_child(r)
 	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return p
+
+
+const MARGIN_X := 40.0 # where the notebook margin rule runs
+
+
+## a list written on a notebook page: a margin rule runs down the left, each item's number sits left of it
+static func margin_list(sep := 8) -> VBoxContainer:
+	var v := vbox(sep)
+	v.name = "MarginList"
+	v.draw.connect(func() -> void: v.draw_line(Vector2(MARGIN_X, -6), Vector2(MARGIN_X, v.size.y + 6), Color(MARGIN, 0.85), 1.5))
+	v.resized.connect(v.queue_redraw)
+	return v
+
+
+## one numbered entry of a margin_list: the number in the margin, the content to the right of the rule
+static func margin_row(num: String, color: Color, content: Control) -> HBoxContainer:
+	var h := hbox(0)
+	var n := label(num, 18, color, f_serif_semi)
+	n.custom_minimum_size.x = MARGIN_X - 9
+	n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	n.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	n.add_theme_constant_override("line_spacing", 0)
+	var top := MarginContainer.new()
+	top.add_theme_constant_override("margin_top", 12)
+	top.add_child(n)
+	top.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(top)
+	var gap := Control.new()
+	gap.custom_minimum_size.x = 19
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	h.add_child(gap)
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(content)
+	return h
 
 
 ## a scroll area that holds a centred column (max width on big screens)

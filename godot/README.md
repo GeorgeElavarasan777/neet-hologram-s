@@ -7,6 +7,14 @@ figures in 3-D with labels, label quiz and the take-apart / motion slider), Summ
 recall quiz, every chapter's progress), Hologram Room, and Practice (Tap & answer rounds that resume
 where you left off, and the Space shooter).
 
+## Look
+
+Three themes (☀ on Home, or ⋯ → Theme and text size in a lesson), defined in `scripts/ui.gd`:
+**Calm** (default) — a ruled study notebook: cool paper, blue-black ink, a fountain-pen blue for actions,
+Literata for everything you read, and the notebook's rose margin rule with chapter numbers written in
+the margin; **Calm night** — the same notebook in deep slate for evening study; **Hologram** — the
+original dark cyan look. The 3-D stage and the shooter stay dark in every theme.
+
 ## Build for the browser
 
 ```
