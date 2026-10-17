@@ -1,14 +1,15 @@
 class_name PracticeBank
 extends RefCounted
-## Questions from content/practice.json (every one generated and checked by engines/practice/bank.js):
-## pick from the chosen chapters, then trim the options to the number wanted (the answer always stays).
+## Questions from content/practice.json (every one generated and checked by engines/practice/bank.js) and
+## from your books (each chapter's MCQs, Library): pick from the chosen chapters, then trim the options to
+## the number wanted (the answer always stays).
 
 static func chapters() -> Array:
-	return App.practice_data.get("chapters", [])
+	return Library.practice_chapters() + App.practice_data.get("chapters", [])
 
 
 static func groups() -> Array:
-	return App.practice_data.get("groups", [])
+	return Library.practice_groups() + App.practice_data.get("groups", [])
 
 
 static func chapter(id: String) -> Dictionary:
@@ -43,12 +44,16 @@ static func make(ids: Array, count := 4, avoid := {}) -> Dictionary:
 		wrong.shuffle()
 		var opts: Array = [right] + wrong.slice(0, maxi(1, count - 1))
 		opts.shuffle()
-		return {"q": item.q, "options": opts, "answer": opts.find(right), "hint": item.get("h", ""), "topic": item.get("t", ""), "chapter": c.id, "chapter_title": c.title, "color": c.get("color", "#4fd1e8")}
+		return {"q": item.q, "options": opts, "answer": opts.find(right), "hint": item.get("h", ""), "topic": item.get("t", ""), "chapter": c.id, "chapter_title": c.title,
+			"color": c.get("color", "#4fd1e8"), "book": c.get("book", false), "page": int(item.get("p", 0))}
 	return {}
 
 
 ## a hint that helps without giving the answer away
 static func safe_hint(q: Dictionary) -> String:
+	if bool(q.get("book", false)): # your book: say where to look, never the sentence that holds the answer
+		var topic := str(q.get("topic", ""))
+		return "Look on page %d%s." % [int(q.get("page", 0)), (" — " + topic) if topic != "" else ""]
 	var h := str(q.get("hint", ""))
 	var ans := str(q.options[q.answer])
 	if h == "":

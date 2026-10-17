@@ -1,7 +1,8 @@
 class_name PracticeScreen
 extends Screen
 ## Practice: choose chapters and a mode — Tap & answer (rounds of 10 MCQs) or Space shooter. A round is
-## saved after every answer, so "Continue" resumes exactly where you left off.
+## saved after every answer, so "Continue" resumes exactly where you left off. Your books' chapters are
+## listed first; a book chapter's Practice button opens this with that chapter chosen.
 
 const ROUND := 10
 
@@ -9,6 +10,11 @@ var _col: VBoxContainer
 var _mode := "tap"
 var _sel: Array = []
 var _answered := false
+var _pre: Array = []
+
+
+func _init(preselect: Array = []) -> void:
+	_pre = preselect.duplicate()
 
 
 func _ready() -> void:
@@ -20,7 +26,19 @@ func _ready() -> void:
 	var st := _state()
 	_mode = str(st.get("mode", "tap"))
 	_sel = st.get("sel", []).duplicate()
+	if not _pre.is_empty():
+		_sel = _pre.duplicate()
+		_mode = "tap"
+		st.sel = _sel
+		st.mode = _mode
+		App.save()
 	await App.load_practice()
+	# a chosen chapter that no longer exists (its book was deleted) is dropped
+	var ids := {}
+	for c in PracticeBank.chapters():
+		ids[c.id] = true
+	_sel = _sel.filter(func(x): return ids.has(x))
+	st.sel = _sel
 	_home()
 
 
@@ -54,14 +72,14 @@ func _clear() -> void:
 func _home() -> void:
 	_clear()
 	_state().view = "home"
-	set_titles("Practice", "Class 10 maths · algebra drill · %d questions" % _total())
+	set_titles("Practice", "%d questions · Class 10 maths%s" % [_total(), " and your books" if not Library.practice_chapters().is_empty() else " · algebra drill"])
 	var st := _state()
 	var round: Dictionary = st.get("round", {})
-	if not round.is_empty() and int(round.get("i", 0)) < ROUND:
+	if not round.is_empty() and round.get("qs") is Array and int(round.get("i", 0)) < round.qs.size():
 		var c := UI.card(14, UI.CARD, 16, Color(UI.WARN, 0.45))
 		c.name = "ContinueRound"
 		UI.box(c).add_child(UI.eyebrow("Continue · Tap & answer", UI.WARN))
-		UI.box(c).add_child(UI.label("Question %d of %d · %d correct so far" % [int(round.i) + 1, ROUND, int(round.score)], 15, UI.TEXT, UI.f_semi))
+		UI.box(c).add_child(UI.label("Question %d of %d · %d correct so far" % [int(round.i) + 1, round.qs.size(), int(round.score)], 15, UI.TEXT, UI.f_semi))
 		var row := UI.hbox(8)
 		var go := UI.btn("Continue", "primary", "play", UI.WARN)
 		go.name = "ContinueBtn"
@@ -120,7 +138,7 @@ func _home() -> void:
 			if c.group != g.id:
 				continue
 			var on: bool = c.id in _sel
-			var b := UI.btn(str(c.title), "chip_on" if on else "chip", "", Color(str(c.color)))
+			var b := UI.btn(BookScreen._short(str(c.title), 34), "chip_on" if on else "chip", "", Color(str(c.color)))
 			b.name = "Ch_" + str(c.id)
 			b.pressed.connect(func() -> void:
 				if c.id in _sel:
@@ -154,14 +172,28 @@ func _start() -> void:
 		App.save()
 		App.push(ShooterScreen.new(_sel, false))
 		return
+	# a round of 10, or fewer when the chosen chapters have fewer questions — never the same one twice
+	var avail := 0
+	for c in PracticeBank.chapters():
+		if _sel.is_empty() or c.id in _sel:
+			for g in c.gens:
+				avail += g.size()
+	var want := mini(ROUND, avail)
 	var qs: Array = []
 	var seen := {}
-	for i in ROUND:
+	var tries := 0
+	while qs.size() < want and tries < want * 8:
+		tries += 1
 		var q := PracticeBank.make(_sel, 4, seen)
 		if q.is_empty():
 			break
+		if seen.has(q.q):
+			continue
 		seen[q.q] = true
 		qs.append(q)
+	if qs.is_empty():
+		App.toast("No questions in the chosen chapters")
+		return
 	_state().round = {"qs": qs, "i": 0, "score": 0, "streak": 0, "picked": -1}
 	App.save()
 	_show_question()
@@ -179,7 +211,7 @@ func _show_question() -> void:
 		return
 	var q: Dictionary = r.qs[int(r.i)]
 	var color := Color(str(q.get("color", "#4fd1e8")))
-	if not UI.DARK: # the bank's chapter colours are bright (made for dark screens): deepen them on paper
+	if not UI.DARK and not bool(q.get("book", false)): # the bank's chapter colours are bright (made for dark screens): deepen them on paper
 		color = color.darkened(0.5)
 	set_titles("Practice", "Tap & answer · question %d of %d" % [int(r.i) + 1, r.qs.size()])
 	var top := UI.hbox(10)

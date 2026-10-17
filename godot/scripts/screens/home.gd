@@ -1,10 +1,12 @@
 class_name HomeScreen
 extends Screen
-## Home: continue where you left off, the three subjects with progress, Hologram Room and Practice.
+## Home: continue where you left off, the three subjects with progress, your own books (add a PDF),
+## Hologram Room and Practice.
 
 var col: VBoxContainer
 var _grid: GridContainer
 var _explore: GridContainer
+var _books: GridContainer
 
 
 func _ready() -> void:
@@ -14,7 +16,13 @@ func _ready() -> void:
 	add_action("sun", "Theme and text size", Appearance.open, "AppearanceBtn")
 	col = UI.vbox(14)
 	body.add_child(UI.scroller(UI.pad(col, 16, 18, 16, 28)))
+	App.books_changed.connect(_on_books_changed)
 	render()
+
+
+func _on_books_changed() -> void:
+	if is_inside_tree():
+		render()
 
 
 func on_resume() -> void:
@@ -31,6 +39,8 @@ func _fit_columns() -> void:
 		_grid.columns = 3 if w >= 690 else (2 if w >= 500 else 1)
 	if _explore:
 		_explore.columns = 2 if w >= 500 else 1
+	if _books:
+		_books.columns = 2 if w >= 500 else 1
 
 
 func render() -> void:
@@ -50,6 +60,16 @@ func render() -> void:
 		_grid.add_child(_subject_card(s))
 	col.add_child(_grid)
 	col.add_child(UI.spacer(0, 4))
+	col.add_child(UI.eyebrow("Your books"))
+	_books = GridContainer.new()
+	_books.name = "Books"
+	_books.add_theme_constant_override("h_separation", 12)
+	_books.add_theme_constant_override("v_separation", 12)
+	for e in Library.books():
+		_books.add_child(_book_card(e))
+	_books.add_child(_add_card(Library.books().is_empty()))
+	col.add_child(_books)
+	col.add_child(UI.spacer(0, 4))
 	col.add_child(UI.eyebrow("Explore"))
 	_explore = GridContainer.new()
 	_explore.add_theme_constant_override("h_separation", 12)
@@ -62,6 +82,9 @@ func render() -> void:
 	var n := 0
 	for s in App.subjects():
 		total += App.subject_fraction(s)
+		n += 1
+	for e in Library.books():
+		total += Library.fraction(e)
 		n += 1
 	var overall := UI.hbox(10)
 	overall.add_child(UI.label("Overall", 13, UI.MUTED, UI.f_semi))
@@ -80,20 +103,24 @@ func _continue_card(key: String) -> void:
 	var info := App.find_chapter(parts[0], int(parts[1]))
 	if info.is_empty():
 		return
-	var s: Dictionary = info.subject
-	var color := UI.subject_color(s.key)
+	var book: Dictionary = info.get("book", {})
+	var skey: String = str(book.subject) if not book.is_empty() else str(info.subject.key)
+	var color := UI.subject_color(skey)
 	var c := TapCard.new(16, UI.CARD, 18, Color(color, 0.45))
 	c.name = "ContinueCard"
 	var b := UI.box(c)
 	b.add_child(UI.eyebrow("Continue", color))
 	var row := UI.hbox(12)
-	row.add_child(UI.badge(UI.SUBJECT_ICON.get(s.key, "read"), color, 44))
+	row.add_child(UI.badge(UI.SUBJECT_ICON.get(skey, "read"), color, 44))
 	var t := UI.vbox(2)
 	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.add_child(UI.label("%d. %s" % [int(info.chapter.no), info.chapter.title], 17, UI.TEXT, UI.f_bold, true))
 	var ch := App.chap(key)
 	var tab_name: String = {"listen": "Listen", "read": "Read", "holo": "Hologram", "summary": "Summary"}.get(ch.get("tab", "listen"), "Listen")
-	t.add_child(UI.label("%s · Class %s · %s" % [s.name, info.cls.cls, tab_name], 13, UI.MUTED))
+	if book.is_empty():
+		t.add_child(UI.label("%s · Class %s · %s" % [info.subject.name, info.cls.cls, tab_name], 13, UI.MUTED))
+	else:
+		t.add_child(UI.label("%s · %s" % [book.title, tab_name], 13, UI.MUTED, null, true))
 	row.add_child(t)
 	var go := UI.btn("Resume", "primary", "play", color)
 	go.name = "ResumeBtn"
@@ -139,6 +166,52 @@ func _subject_card(s: Dictionary) -> Control:
 	prow.add_child(UI.label("%d%%" % int(round(f * 100)), 13, UI.TEXT2, UI.f_med))
 	b.add_child(prow)
 	c.tapped.connect(func() -> void: App.push(SubjectScreen.new(s.key)))
+	return c
+
+
+## one of your books: its title, size and how far you are
+func _book_card(e: Dictionary) -> Control:
+	var color := UI.subject_color(str(e.subject))
+	var c := TapCard.new(16, UI.CARD, 18)
+	c.name = "Book_" + str(e.id)
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var b := UI.box(c)
+	var row := UI.hbox(12)
+	row.add_child(UI.badge(UI.SUBJECT_ICON.get(str(e.subject), "read"), color, 44))
+	var t := UI.vbox(2)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.add_child(UI.label(str(e.title), 17, UI.TEXT, UI.f_serif_semi, true))
+	t.add_child(UI.label("%s · %s · %s" % [UI.plural(e.chapters.size(), "chapter"), UI.plural(int(e.notes), "voice note"), UI.plural(int(e.mcq), "MCQ")], 13, UI.MUTED, null, true))
+	row.add_child(t)
+	row.add_child(UI.icon_rect("chev", 20, UI.MUTED))
+	b.add_child(row)
+	var f := Library.fraction(e)
+	var prow := UI.hbox(10)
+	var pb := UI.bar(f, color, 6)
+	pb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	prow.add_child(pb)
+	prow.add_child(UI.label("%d%%" % int(round(f * 100)), 13, UI.TEXT2, UI.f_med))
+	b.add_child(prow)
+	var id := str(e.id)
+	c.tapped.connect(func() -> void: App.push(BookScreen.new(id)))
+	return c
+
+
+## "Add a PDF" — the invitation (no books yet) or a quiet extra card
+func _add_card(first: bool) -> Control:
+	var c := TapCard.new(16, UI.CARD, 18, UI.BORDER2)
+	c.name = "AddBook"
+	c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var row := UI.hbox(12)
+	row.add_child(UI.badge("upload", UI.ACCENT, 44))
+	var t := UI.vbox(2)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.add_child(UI.label("Add a PDF" if first else "Add another PDF", 17, UI.TEXT, UI.f_bold))
+	t.add_child(UI.label("Your own textbook or notes, turned into Listen, Read, Summary, Hologram and MCQ practice" if first else "Another textbook, chapter or set of notes", 13, UI.MUTED, null, true))
+	row.add_child(t)
+	row.add_child(UI.icon_rect("chev", 20, UI.MUTED))
+	UI.box(c).add_child(row)
+	c.tapped.connect(ImportFlow.open)
 	return c
 
 
@@ -194,6 +267,15 @@ func _search(q: String, results: VBoxContainer) -> void:
 						App.main.close_sheet()
 						App.push(LessonScreen.new(cl.pack, int(ch.no), "listen"))))
 					shown += 1
+	for e in Library.books():
+		for ch in e.chapters:
+			if q in str(ch.t).to_lower():
+				var bid := str(e.id)
+				var no := int(ch.n)
+				results.add_child(_result("read", UI.subject_color(str(e.subject)), "%d. %s" % [no, ch.t], "%s · your book" % e.title, func() -> void:
+					App.main.close_sheet()
+					App.push(LessonScreen.new(bid, no, "listen"))))
+				shown += 1
 	for f in App.holo_index:
 		var hay := ("%s %s %s %s" % [f.title, f.get("fig", ""), f.get("ch", ""), f.get("desc", "")]).to_lower()
 		if q in hay:

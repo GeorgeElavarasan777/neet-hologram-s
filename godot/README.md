@@ -15,6 +15,31 @@ Literata for everything you read, and the notebook's rose margin rule with chapt
 the margin; **Calm night** — the same notebook in deep slate for evening study; **Hologram** — the
 original dark cyan look. The 3-D stage and the shooter stay dark in every theme.
 
+## Your own PDFs
+
+Home → Your books → **Add a PDF** turns a student's own textbook, chapter or notes (PDF, or a .txt / .md file)
+into a book with the same tabs as the NCERT books: Listen, Read, Summary and Hologram, plus MCQs that join
+Practice (Tap & answer and the Space shooter). It all happens in the browser; the file never leaves the device.
+
+- **Reading:** pdf.js reads each page and the study console's own scanner (copied from `engines/study/study.html`
+  at build time by `tools/godot-import.mjs`) builds chapters, sections, voice notes, key points, key terms, the
+  summary and the recall quiz — exactly as for the NCERT books.
+- **Textbook clean-up** (`web/import/driver.js`) for what printed textbooks leave in a PDF's text: running heads
+  and page numbers, the chapter contents on page 1, fake-bold repeats, glued words (checked against the words of
+  the NCERT books, `import/words.txt`), headings set in body-size capitals. NCERT file names (kebo102 = Class 11
+  Biology chapter 2) give the chapter its title.
+- **Holograms:** a chapter named like an NCERT chapter gets that chapter's figures; otherwise the library's
+  figures whose titles and labels the text keeps using (tuned on the NCERT books).
+- **MCQs:** fill-the-blank questions from the chapter's definitions, key points and sentences; the answer is a key
+  term, wrong options are other key terms of the same shape; after answering, the book's own sentence and page.
+- **Progress** works as for the NCERT books (notes heard, page, quiz, Continue on Home). Adding the same file
+  again scans it afresh and keeps the progress; Delete removes the book, its files and its progress.
+- Large PDFs ask which pages to scan (200 / 400 / 600 pages by device memory). Password-protected, damaged,
+  scanned (no text), non-English and too-short files get a message saying what to do. The sheet shows each step
+  with a progress bar; Cancel or closing the sheet stops it and adds nothing.
+
+Books live in `user://books/` (IndexedDB in the browser), the list and all progress in `user://holostudy.json`.
+
 ## Build for the browser
 
 ```
@@ -23,6 +48,7 @@ python tools/godot-fonts.py         # 2. fonts cut to the characters the content
 node tools/godot-build.mjs --serve  # 3. export → build/godot-web, preview on http://127.0.0.1:8060
 ```
 
+Step 3 also builds the PDF converter into `build/godot-web/import/` (`tools/godot-import.mjs`).
 `node tools/godot-build.mjs --content` runs step 1 and 3 together. The script looks for Godot in
 `E:\tools\godot`; set `GODOT=<path to the Godot 4.7 console executable>` otherwise. The Web export
 templates for 4.7.2 must be installed (Editor → Manage Export Templates, or only the `web_*.zip`
@@ -40,16 +66,28 @@ once; each book and hologram is fetched when it is opened.
 godot --headless --path godot -- --autotest     # desktop: a new student taps through every screen (exit code = failures)
 ```
 
-On the web, open `index.html?autotest`: the same walk-through runs in the browser and writes its
-results to `window.__holo`. `tools/gdcheck.sh` compiles every script and lists errors.
+```
+node tools/godot-webtest.mjs                  # the walk-through in headless Edge (phone size, WebGL), with real taps and
+                                              # the real file picker: adds a PDF it prints itself, studies, practises,
+                                              # re-adds, rejects scanned/damaged files, cancels, deletes (exit code = failures)
+node tools/test-import.mjs                    # the converter without a browser: each NCERT book's text gives the same
+                                              # chapters, notes, terms, summary and quiz as its pack; MCQs well formed
+node tools/godot-pdfcheck.mjs <file or folder>  # what "Add a PDF" makes of your own PDFs
+```
+
+`godot-webtest.mjs --fixture` also saves the converted sample book to `tests/sample-book.json`, which the desktop
+walk-through uses in place of the browser converter. `tools/gdcheck.sh` compiles every script and lists errors.
 
 ## Layout
 
 - `scripts/app.gd` — content loading (HTTP on the web, files elsewhere), progress, navigation, browser Back
+- `scripts/library.gd` — your books: install (checked field by field), progress clean-up, delete, their MCQs
+- `scripts/import_flow.gd` — the Add a PDF sheet: picker, progress, page range, result, errors
+- `web/import/driver.js` — the converter's own part (clean-up, holograms, MCQs, the API the sheet calls)
 - `scripts/speech.gd` — text-to-speech (Web Speech API in browsers): natural voice choice, word position
 - `scripts/main.gd` — page stack, bottom sheets, toasts, UI scale (follows the device pixel ratio)
 - `scripts/ui.gd` — colours, fonts, theme, line icons, widget builders
-- `scripts/screens/*` — Home, Subject, Lesson, Hologram, Hologram Room, Practice
+- `scripts/screens/*` — Home, Subject, Book, Lesson, Hologram, Hologram Room, Practice
 - `scripts/lesson/*` — Listen, Read, Hologram and Summary tabs, the note player
 - `scripts/holo/holo_view.gd` — the 3-D stage (GLB loading, hologram shader, orbit, labels, slider)
 - `scripts/practice/*` — question picking and the Space shooter

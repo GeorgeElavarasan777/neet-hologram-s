@@ -7,6 +7,7 @@ extends Node
 
 var results: Array = []
 var _web := OS.has_feature("web")
+var _clicks := 0
 
 
 func _ready() -> void:
@@ -118,6 +119,31 @@ func _tap(name_or_node: Variant, label := "") -> bool:
 func _back() -> void:
 	App.main.back()
 	await _frames(6)
+
+
+## a tap the browser itself sees (the CDP driver clicks with the mouse): file pickers only open after one.
+## Without the driver (desktop), the usual tap.
+func _real_tap(name: String, label := "") -> bool:
+	if not _web:
+		return await _tap(name, label)
+	var c := _find(name)
+	if c == null:
+		_step("tap " + (label if label != "" else name), false, "not found")
+		return false
+	var p := c.get_parent()
+	while p:
+		if p is ScrollContainer:
+			(p as ScrollContainer).ensure_control_visible(c)
+			break
+		p = p.get_parent()
+	await _frames(4)
+	var px: Vector2 = App.main.get_viewport().get_final_transform() * c.get_global_rect().get_center()
+	var dpr := float(JavaScriptBridge.eval("window.devicePixelRatio || 1", true))
+	_clicks += 1
+	JavaScriptBridge.eval("window.__click = {x: %f, y: %f, n: %d}" % [px.x / dpr, px.y / dpr, _clicks])
+	var ok := await _wait(func(): return int(JavaScriptBridge.eval("window.__clickDone || 0", true)) == _clicks, 5)
+	await _frames(4)
+	return ok
 
 
 # ───────── the walk-through ─────────
@@ -376,6 +402,8 @@ func _run() -> void:
 	await _tap("Theme_calm", "Calm")
 	ok = await _wait(func(): return UI.palette == "calm" and _top().name == "Home")
 	_step("Calm applies again", ok)
+	# 12 · your own PDF
+	await _book_flow()
 
 
 func _moving_node(hv: HoloView) -> Node3D:
@@ -389,3 +417,221 @@ func _moving_node(hv: HoloView) -> Node3D:
 			if n is Node3D:
 				return n
 	return null
+
+
+# ───────── your own PDF: add it, study it, practise it, add it again, delete it ─────────
+
+func _book_flow() -> void:
+	var upload := _web and int(JavaScriptBridge.eval("location.search.indexOf('upload') >= 0 ? 1 : 0", true)) == 1
+	var books_before := Library.books().size()
+	_step("Home offers Add a PDF", _find("AddBook") != null)
+	await _tap("AddBook", "Add a PDF")
+	var ok := await _wait(func(): return App.main.has_sheet() and _find("ImportSheet") != null)
+	_step("Add a PDF says what it will make", ok)
+	await _shot("import-intro")
+	var flow: ImportFlow = ImportFlow.current
+	var sample := ""
+	if upload: # a real tap → the browser's file picker → the driver hands it the sample PDF
+		JavaScriptBridge.eval("window.__pickFile = 'sample-book.pdf'")
+		await _real_tap("ChoosePdf", "Choose a PDF")
+		ok = await _wait(func(): return flow.state != "picking" and flow.state != "intro", 20)
+		_step("the picked PDF starts converting", ok and flow.state in ["running", "done"], flow.state)
+		await _wait(func(): return flow.steps.size() >= 4 or flow.state != "running", 60)
+		await _shot("import-progress")
+		await _wait(func(): return flow.state in ["done", "error", "intro"], 300)
+		_step("the PDF becomes a book", flow.state == "done", flow.error if flow.state == "error" else "%d progress updates" % flow.steps.size())
+		var fr: Array = flow.steps.map(func(x): return float(x[1]))
+		var up := not fr.is_empty()
+		for i in range(1, fr.size()):
+			if fr[i] < fr[i - 1]:
+				up = false
+		_step("the import's progress only goes up and ends at 100 %", up and is_equal_approx(float(fr.back()), 1.0), "%d updates, last %s" % [fr.size(), str(fr.back()) if not fr.is_empty() else "-"])
+		sample = str(JavaScriptBridge.eval("HoloImport.lastPack || ''", true))
+		JavaScriptBridge.eval("window.__holoSamplePack = HoloImport.lastPack")
+	else: # desktop: the browser's own output for that PDF (tools/godot-webtest.mjs --fixture)
+		sample = FileAccess.get_file_as_string("res://tests/sample-book.json")
+		_step("the converted sample book is there (godot/tests/sample-book.json)", sample != "")
+		flow._js_started(["sample-book.pdf", sample.length(), ""])
+		flow._js_progress(["Reading pages 10/40", 0.2])
+		await _shot("import-progress")
+		flow._js_progress(["Done", 1.0])
+		flow.finish(sample)
+	if flow.state != "done":
+		return
+	await _shot("import-done")
+	var id := str(flow.result.id)
+	var e := Library.entry(id)
+	_step("the book is in the library", e.get("chapters", []).size() == 3 and Library.books().size() == books_before + 1, "%d chapters · %d voice notes · %d MCQs · %d holograms" % [e.get("chapters", []).size(), int(e.get("notes", 0)), int(e.get("mcq", 0)), int(e.get("holos", 0))])
+	_step("its pages and questions are saved on the device", FileAccess.file_exists(Library.pack_path(id)) and FileAccess.file_exists(Library.mcq_path(id)))
+	await _tap("OpenBook", "Open the book")
+	ok = await _wait(func(): return _top().name == "Book" and _find("BookCh3") != null)
+	_step("Open the book lists its chapters", ok)
+	await _shot("book")
+	# chapter 1 · Listen
+	await _tap("BookCh1", "chapter 1")
+	ok = await _wait(func(): return App.main.has_sheet() and _find("Act_practice") != null)
+	_step("a book chapter offers Listen, Read, Summary, Hologram and Practice", ok and _find("Act_listen") != null and _find("Act_holo") != null)
+	await _shot("book-chapter-sheet")
+	await _tap("Act_listen", "Listen")
+	ok = await _wait(func(): return _top() is LessonScreen and not _top().pack.is_empty() and _find("Pane_listen") != null, 20)
+	_step("the book chapter opens in Listen", ok)
+	if not ok:
+		return
+	var lesson: LessonScreen = _top()
+	var key := App.chapter_key(id, 1)
+	await _frames(8)
+	await _tap("Play", "▶ play")
+	ok = await _wait(func(): return lesson.player.playing)
+	_step("▶ reads the book's voice notes aloud", ok, "%d notes" % lesson.ch.notes.size())
+	await _shot("book-listen")
+	await _wait(func(): return lesson.player.idx >= 2, 20)
+	lesson.player.stop()
+	_step("notes heard are counted", App.heard_count(key) >= 1, "%d heard" % App.heard_count(key))
+	# Read
+	await _tap("Tab_read", "Read tab")
+	var read: Control = lesson.tab_node("read")
+	ok = await _wait(func(): return read != null and read.visible)
+	var p0: int = read.page if read else 0
+	await _tap("NextPage", "› next page")
+	_step("Read turns the book's pages", ok and read.page > p0, "%d → %d" % [p0, read.page if read else 0])
+	await _shot("book-read")
+	# Hologram: this chapter is Biological Classification → that NCERT chapter's figures
+	await _tap("Tab_holo", "Hologram tab")
+	ok = await _wait(func(): return _find("Holo_b11-2-1") != null, 10)
+	_step("chapter 1 shows the holograms of its NCERT chapter", ok)
+	await _shot("book-holo")
+	if ok:
+		await _tap("Holo_b11-2-1", "a hologram")
+		ok = await _wait(func(): return _top().name == "Holo" and _top().view.model != null, 20)
+		_step("…and it opens in 3-D", ok)
+		await _back()
+	# Summary + recall quiz
+	await _tap("Tab_summary", "Summary tab")
+	await _wait(func(): return _find("Pane_summary") != null and _find("Pane_summary").visible)
+	_step("Summary lists the chapter's key points", not lesson.ch.summary.is_empty(), "%d points · %d quiz questions" % [lesson.ch.summary.size(), lesson.ch.quiz.size()])
+	if _find("StartQuiz"):
+		await _tap("StartQuiz", "start the quiz")
+		for i in 8:
+			var opt := _find("Opt0")
+			if opt == null:
+				break
+			await _tap(opt, "an answer")
+			var nq := _find("NextQ")
+			if nq == null:
+				break
+			await _tap(nq, "next question")
+		ok = await _wait(func(): return _find("Score") != null)
+		_step("the book's recall quiz runs to a score that is kept", ok and int(App.chap(key).quiz) >= 0)
+		await _shot("book-quiz")
+	# chapter 3 has a made-up title: its holograms come from what its text talks about
+	await _tap("ChaptersBtn", "☰ chapters")
+	await _wait(func(): return App.main.has_sheet() and _find("Ch3") != null)
+	await _tap("Ch3", "chapter 3")
+	await _wait(func(): return lesson.ch_no == 3 and not App.main.has_sheet())
+	await _tap("Tab_holo", "Hologram tab")
+	await _wait(func(): return lesson.tab_node("holo") != null, 5)
+	await _frames(10)
+	var found := ""
+	for n in lesson.tab_node("holo").find_children("Holo_*", "", true, false):
+		found += str(n.name).trim_prefix("Holo_") + " "
+	_step("chapter 3's holograms are matched by its text", found.contains("b11-3-"), found.strip_edges())
+	await _shot("book-holo-matched")
+	# back on the book: the progress shows
+	await _back()
+	ok = await _wait(func(): return _top().name == "Book")
+	var f := Library.fraction(Library.entry(id))
+	var pct: Label = _find("BookPct") as Label
+	_step("the book shows its progress", ok and f > 0.0 and pct != null and pct.text != "0%", "%d%%" % int(round(f * 100)))
+	await _shot("book-progress")
+	# Practice from chapter 1
+	await _tap("BookCh1", "chapter 1")
+	await _wait(func(): return _find("Act_practice") != null)
+	await _tap("Act_practice", "Practice")
+	ok = await _wait(func(): return _top().name == "Practice" and _find("StartBtn") != null, 10)
+	_step("Practice opens with the chapter chosen", ok and App.data.practice.get("sel", []) == [key])
+	await _shot("book-practice-home")
+	await _tap("StartBtn", "start a round")
+	ok = await _wait(func(): return _find("Opt0") != null)
+	var r: Dictionary = App.data.practice.get("round", {})
+	var from_book: bool = ok and not r.is_empty() and r.qs.all(func(q): return str(q.chapter) == key)
+	_step("the round's questions come from the book", from_book, "%d questions" % r.get("qs", []).size())
+	if from_book:
+		await _tap("Opt%d" % int(r.qs[0].answer), "the right answer")
+		ok = await _wait(func(): return _find("Feedback") != null)
+		_step("the right answer scores", ok and int(r.score) == 1)
+		_step("the explanation shows the book's sentence", str(r.qs[0].hint).begins_with("Page "), str(r.qs[0].hint).left(60))
+		await _shot("book-practice")
+		await _tap("SaveExit", "save & exit")
+	await _back()
+	await _back()
+	# the save holds the book and its progress
+	App.save_now()
+	var saved: Variant = JSON.parse_string(FileAccess.get_file_as_string(App.SAVE_PATH))
+	ok = saved is Dictionary and saved.get("books", []).any(func(b): return str(b.id) == id) and saved.chapters.has(key) and saved.chapters[key].heard.size() >= 1
+	_step("the book and its progress are saved", ok)
+	# every chapter's progress stays within its notes
+	var sane := true
+	var detail := ""
+	for c in Library.entry(id).chapters:
+		var k := App.chapter_key(id, int(c.n))
+		var fr2 := App.chapter_fraction(k)
+		if fr2 < 0.0 or fr2 > 1.0 or App.heard_count(k) > int(c.notes):
+			sane = false
+		detail += "%d%% " % int(round(fr2 * 100))
+	_step("every chapter's progress is between 0 and 100 %", sane, detail.strip_edges())
+	# Home: the book with its progress, Continue goes to it
+	if _top().name != "Home":
+		await _back()
+	ok = await _wait(func(): return _top().name == "Home" and _find("Book_" + id) != null and _find("ContinueCard") != null)
+	_step("Home shows the book and continues in it", ok and str(App.data.last).begins_with(id + ":"), str(App.data.last))
+	await _shot("home-with-book")
+	# the same file again: scanned afresh, progress kept
+	var heard := App.heard_count(key)
+	var again := ImportFlow.open()
+	again.finish(sample)
+	_step("adding the same PDF again keeps the progress", again.result.get("replaced", false) and App.heard_count(key) == heard and Library.books().size() == books_before + 1, "%d heard" % App.heard_count(key))
+	if upload: # files that cannot become a book, and stopping an import
+		JavaScriptBridge.eval("window.__pickFile = 'scanned.pdf'")
+		await _tap("AddAnother", "Add another PDF")
+		await _real_tap("ChoosePdf", "Choose a PDF")
+		await _wait(func(): return again.state in ["error", "done"], 60)
+		_step("a scanned PDF gets a clear message", again.state == "error" and again.error.contains("scan"), again.error.left(70))
+		await _shot("import-error")
+		JavaScriptBridge.eval("window.__pickFile = 'broken.pdf'")
+		await _real_tap("ChoosePdf", "Choose another PDF")
+		await _wait(func(): return again.state == "error" and again.error.contains("opened"), 60)
+		_step("a damaged file gets a clear message", again.error.contains("could not be opened"), again.error.left(70))
+		JavaScriptBridge.eval("window.__pickFile = 'sample-copy.pdf'")
+		await _real_tap("ChoosePdf", "Choose another PDF")
+		await _wait(func(): return again.state == "running" and again.steps.size() >= 1, 30)
+		await _tap("CancelImport", "Cancel")
+		ok = await _wait(func(): return again.state == "intro", 30)
+		_step("Cancel stops the import and adds nothing", ok and Library.books().size() == books_before + 1, again.state)
+		JavaScriptBridge.eval("window.__pickFile = 'sample-copy.pdf'")
+		await _real_tap("ChoosePdf", "Choose a PDF")
+		await _wait(func(): return again.state == "running" and again.steps.size() >= 1, 30)
+		var gone: WeakRef = weakref(again) # the flow frees itself once the browser confirms the stop
+		await _back()
+		ok = await _wait(func(): return gone.get_ref() == null, 30)
+		_step("closing the sheet stops the import too", ok and not App.main.has_sheet() and Library.books().size() == books_before + 1)
+		var busy := int(JavaScriptBridge.eval("HoloImport.busy() ? 1 : 0", true))
+		_step("…and the browser is not still working on it", busy == 0)
+	if App.main.has_sheet():
+		await _back()
+	# delete: the book and everything that belongs to it
+	await _tap("Book_" + id, "the book")
+	await _wait(func(): return _top().name == "Book")
+	await _tap("BookOptions", "⋯ book options")
+	await _wait(func(): return _find("DeleteBook") != null)
+	await _tap("DeleteBook", "Delete this book")
+	await _wait(func(): return _find("DeleteConfirm") != null)
+	await _shot("book-delete")
+	await _tap("DeleteConfirm", "Delete")
+	ok = await _wait(func(): return _top().name == "Home" and _find("Book_" + id) == null)
+	var left := 0
+	for k in App.data.chapters:
+		if str(k).begins_with(id + ":"):
+			left += 1
+	_step("Delete removes the book, its files and its progress", ok and Library.entry(id).is_empty() and left == 0 and not FileAccess.file_exists(Library.pack_path(id)) and not str(App.data.last).begins_with(id))
+	_step("…and Practice no longer offers it", not App.data.practice.get("sel", []).has(key) and not PracticeBank.chapters().any(func(c): return str(c.id).begins_with(id)))
+	await _shot("home-after-delete")

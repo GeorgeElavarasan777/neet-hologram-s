@@ -10,6 +10,8 @@ var _toast: PanelContainer
 var _toast_tween: Tween
 var _scale := 1.0
 var _bg: ColorRect
+var sheet_modal := false # a tap outside the sheet does not close it (an import is running)
+var _slide := 0.0 # the sheet's slide-in offset: layout adds it, so content that grows meanwhile still fits
 
 
 func _ready() -> void:
@@ -189,22 +191,27 @@ func open_sheet(title: String, content: Control, max_w := 560.0) -> Control:
 	overlay.add_child(root)
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	_sheet = root
-	_layout_sheet(panel, scroll, content, max_w, wide)
-	content.resized.connect(_layout_sheet.bind(panel, scroll, content, max_w, wide))
+	_slide = 0.0 if wide else 40.0
+	var relayout := _layout_sheet.bind(panel, scroll, content, max_w, wide)
+	relayout.call()
+	content.resized.connect(relayout)
 	panel.modulate.a = 0.0
-	var tw := create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var tw := panel.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT) # dies with the panel
 	tw.tween_property(panel, "modulate:a", 1.0, 0.16)
 	if not wide:
-		var y := panel.position.y
-		panel.position.y = y + 40
-		tw.tween_property(panel, "position:y", y, 0.22)
+		tw.tween_method(_set_slide.bind(relayout), 40.0, 0.0, 0.22)
 	if OS.has_feature("web") and not App.autotest:
 		JavaScriptBridge.eval("history.pushState({hs: Date.now()}, '')")
 	return root
 
 
+func _set_slide(v: float, relayout: Callable) -> void:
+	_slide = v
+	relayout.call()
+
+
 func _on_scrim_input(ev: InputEvent) -> void:
-	if ev is InputEventMouseButton and ev.pressed:
+	if ev is InputEventMouseButton and ev.pressed and not sheet_modal:
 		App.back()
 
 
@@ -216,7 +223,7 @@ func _layout_sheet(panel: PanelContainer, scroll: ScrollContainer, content: Cont
 	var h := minf(want, size.y * (0.86 if wide else 0.82))
 	scroll.custom_minimum_size.y = h - 80
 	panel.size = Vector2(w, h)
-	panel.position = Vector2((size.x - w) * 0.5, (size.y - h) * 0.5 if wide else size.y - h)
+	panel.position = Vector2((size.x - w) * 0.5, (size.y - h) * 0.5 if wide else size.y - h + _slide)
 
 
 func has_sheet() -> bool:
@@ -238,6 +245,7 @@ func _hide_sheet() -> void:
 		return
 	var s := _sheet
 	_sheet = null
+	sheet_modal = false
 	overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay.remove_child(s)
 	s.queue_free()
@@ -248,6 +256,7 @@ func _close_now() -> void:
 		overlay.remove_child(_sheet)
 		_sheet.queue_free()
 		_sheet = null
+		sheet_modal = false
 		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 

@@ -4,6 +4,7 @@ extends Node
 ## it sits next to index.html — and read from disk everywhere else.
 
 signal progress_changed
+signal books_changed # a book was added, scanned again or deleted (Library)
 
 const SAVE_PATH := "user://holostudy.json"
 const PACK_IDS := ["physics11", "physics12", "chemistry11", "chemistry12", "biology11", "biology12"]
@@ -20,6 +21,8 @@ var _packs := {}
 var _loading := {}
 var _save_timer: Timer
 var _js_back: JavaScriptObject
+var _js_drop: JavaScriptObject
+var _js_drop_h: JavaScriptObject
 var skip_pop := 0 # history.back() calls made by the app itself (closing a sheet from code)
 
 
@@ -36,6 +39,8 @@ func _ready() -> void:
 	_save_timer.timeout.connect(_write)
 	add_child(_save_timer)
 	_load_progress()
+	if OS.has_feature("web"):
+		_listen_for_drops.call_deferred()
 
 
 # ───────── content ─────────
@@ -73,11 +78,17 @@ func fetch_json(rel: String) -> Variant:
 func boot() -> void:
 	var cur = await fetch_json("curriculum.json")
 	curriculum = cur if cur is Dictionary else {"subjects": []}
+	Library.check()
 
 
 func load_pack(id: String) -> Dictionary:
 	if _packs.has(id):
 		return _packs[id]
+	if Library.is_book_id(id): # one of your books: on this device
+		var b := Library.load_pack(id)
+		if not b.is_empty():
+			_packs[id] = b
+		return b
 	if _loading.has(id): # someone else is already downloading it
 		while _loading.has(id):
 			await get_tree().process_frame
@@ -89,6 +100,11 @@ func load_pack(id: String) -> Dictionary:
 		_packs[id] = p
 		return p
 	return {}
+
+
+## a book was scanned again or deleted: read it afresh next time
+func forget_pack(id: String) -> void:
+	_packs.erase(id)
 
 
 func load_holo_index() -> Array:
@@ -120,8 +136,10 @@ func subject(key: String) -> Dictionary:
 	return {}
 
 
-## {subject, cls, chapter} for a pack id + chapter number
+## {subject, cls, chapter} for a pack id + chapter number ({book, chapter} for one of your books)
 func find_chapter(pack: String, no: int) -> Dictionary:
+	if Library.is_book_id(pack):
+		return Library.chapter_info(pack, no)
 	for s in subjects():
 		for c in s.classes:
 			if c.pack == pack:
@@ -134,7 +152,7 @@ func find_chapter(pack: String, no: int) -> Dictionary:
 # ───────── progress & settings ─────────
 
 func _defaults() -> Dictionary:
-	return {"v": 1, "chapters": {}, "holos": {}, "practice": {}, "last": "",
+	return {"v": 1, "chapters": {}, "holos": {}, "practice": {}, "last": "", "books": [],
 		"settings": {"rate": 1.0, "voice": "", "auto_advance": true, "key_only": false, "text_size": 1.0, "labels": true, "theme": "calm"}}
 
 
@@ -153,6 +171,12 @@ func _load_progress() -> void:
 
 func save() -> void:
 	_save_timer.start()
+
+
+## write now (a book was added or deleted: the list and the files must never disagree)
+func save_now() -> void:
+	_save_timer.stop()
+	_write()
 
 
 func _write() -> void:
@@ -263,6 +287,21 @@ func _on_popstate(_args: Array) -> void:
 		skip_pop -= 1
 		return
 	main.back()
+
+
+## a PDF dropped anywhere on the page (desktop browsers) starts an import
+func _listen_for_drops() -> void:
+	var hi: Variant = JavaScriptBridge.get_interface("HoloImport")
+	if hi == null:
+		return
+	_js_drop = JavaScriptBridge.create_callback(_on_dropped)
+	_js_drop_h = JavaScriptBridge.create_object("Object")
+	_js_drop_h.onDropped = _js_drop
+	hi.onDrop(_js_drop_h)
+
+
+func _on_dropped(args: Array) -> void:
+	ImportFlow.start_dropped(str(args[0]) if args.size() > 0 else "document.pdf")
 
 
 func toast(text: String) -> void:

@@ -50,13 +50,18 @@ const copy = (src, dst) => {
 fs.mkdirSync(path.join(OUT, 'content'), { recursive: true });
 copy(path.join(PROJECT, 'content'), path.join(OUT, 'content'));
 fs.writeFileSync(path.join(OUT, '.nojekyll'), ''); // GitHub Pages: serve files as they are
+// "Add a PDF": the converter (the study console's scanner + pdf.js) next to index.html
+{
+  const r2 = spawnSync(process.execPath, [path.join(ROOT, 'tools', 'godot-import.mjs'), OUT], { stdio: 'inherit' });
+  if (r2.status !== 0) process.exit(r2.status || 1);
+}
 const size = (dir) => fs.readdirSync(dir, { withFileTypes: true }).reduce((a, e) => a + (e.isDirectory() ? size(path.join(dir, e.name)) : fs.statSync(path.join(dir, e.name)).size), 0);
 const mb = (n) => (n / 1048576).toFixed(1) + ' MB';
 const engine = ['index.wasm', 'index.pck', 'index.js'].reduce((a, f) => a + (fs.existsSync(path.join(OUT, f)) ? fs.statSync(path.join(OUT, f)).size : 0), 0);
 console.log(`done in ${((Date.now() - t0) / 1000).toFixed(0)} s → ${path.relative(ROOT, OUT)}  (engine ${mb(engine)} · content ${mb(size(path.join(OUT, 'content')))} loaded on demand)`);
 
 if (args.has('--serve')) {
-  const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.wasm': 'application/wasm', '.pck': 'application/octet-stream', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
+  const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.wasm': 'application/wasm', '.pck': 'application/octet-stream', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.svg': 'image/svg+xml' };
   http.createServer((req, res) => {
     let p = path.join(OUT, decodeURIComponent(new URL(req.url, 'http://x').pathname));
     if (fs.existsSync(p) && fs.statSync(p).isDirectory()) p = path.join(p, 'index.html');
