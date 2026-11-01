@@ -14,6 +14,7 @@ var state := "intro" # intro · picking · running · asking · done · error
 var steps: Array = [] # [stage, fraction] as reported (the autotest checks them)
 var result := {} # Library.install(): {id, entry, replaced}
 var error := ""
+var install_ms := -1 # how long adding the converted book to the library took (the capacity test reads it)
 var _box: VBoxContainer
 var _bar: ProgressBar
 var _stage: Label
@@ -29,6 +30,18 @@ var _closing := false # the sheet went while the browser was still working: free
 static func open() -> ImportFlow:
 	var f := _fresh()
 	f._intro()
+	return f
+
+
+## a file the page can fetch (the capacity test): straight to the progress view
+static func start_url(url: String, file_name: String) -> ImportFlow:
+	var f := _fresh()
+	var hi := f._api()
+	if hi == null:
+		return f
+	f._name = file_name
+	f._running_view()
+	hi.convertUrl(url, file_name, f._handlers())
 	return f
 
 
@@ -155,7 +168,9 @@ func _js_pick_cancelled(_args: Array) -> void:
 
 ## the converted book (JSON in the NCERT pack format) → the library (also the autotest's way in)
 func finish(json_text: String) -> void:
+	var t := Time.get_ticks_msec()
 	var r := Library.install(json_text)
+	install_ms = Time.get_ticks_msec() - t
 	if r.has("error"):
 		_fail(str(r.error))
 		return

@@ -9,7 +9,7 @@ const API = 1;
 const SCAN = 1; // bump when the import changes: a re-added PDF then gets a fresh id instead of the older scan
 const HERE = (document.currentScript && document.currentScript.src) || location.href;
 const at = (p) => new URL(p, HERE).href;
-const MAX_MB = 150;
+const maxMB = () => { const m = navigator.deviceMemory || 4; return m <= 2 ? 80 : m <= 4 ? 160 : 400; }; // the whole file is held twice while reading
 const nextFrame = () => new Promise((r) => {
   let done = false; const go = () => { if (!done) { done = true; r(); } };
   if (document.visibilityState === 'visible') requestAnimationFrame(go);
@@ -49,8 +49,45 @@ const deep = (x, f) => typeof x === 'string' ? f(x) : Array.isArray(x) ? x.map((
 //   5 breaks each page's wall of text into paragraphs for Read
 const SMALLW = new Set('a an and as at by for from in into of on or the to vs via with'.split(' '));
 const capsTitle = (s) => s.toLowerCase().replace(/[a-z][a-z'’]*/g, (w, i) => (i > 0 && SMALLW.has(w) ? w : w[0].toUpperCase() + w.slice(1)));
-const ENDINGS = /\b(SUMMARY|ADDITIONAL EXERCISES|EXERCISES|POINTS TO PONDER|QUESTIONS)\b(?=\s|$)/g;
+const ENDINGS = /\b(SUMMARY|ADDITIONAL EXERCISES|EXERCISES|POINTS TO PONDER|QUESTIONS)\b(?=\s|$)|\b(Exercises)\b(?=\s+\d{1,2}\.\d{1,2}\s)/g;
+// fake bold printed glyph by glyph (NCERT chemistry): "5.15.15.15.15.1 Werner’Werner’Werner’sssss", "ofofofofof",
+// "Some Some Some". Only undone in a document that shows the pattern, so "AAAA" in a DNA sequence elsewhere stays
+const BOLD_SIGNS = /(\d{1,2}\.\d{1,2})\1{2,}|\b([A-Za-z]{2,}[’']?)(?: ?\2){2,}(?![A-Za-z])/g;
+const unbold = (t) => t.replace(/(\d)\s\.\s(\d)/g, '$1.$2')
+  .replace(/(\d{1,2}?\.\d{1,2}?(?:\.\d{1,2}?)?)\1+(?!\d)/g, '$1')
+  .replace(/([^\s\d]{2,24}?)\1{2,}/g, '$1')
+  .replace(/(^|\s)(\S+)(?: \2(?=\s|$)){2,}/g, '$1$2')
+  .replace(/([a-z,;:’'.])\1{3,}/g, '$1')
+  .replace(/([A-Z])\1{3,}/g, '$1');
 const NOT_HEADING = /^(which|what|how|why|when|where|who|find|show|explain|give|state|calculate|prove|derive|describe|discuss|the|a|an|this|these|that|if|in|for|on|it|we|is|are|as)$/i;
+
+// a font whose character codes are 29 too low (some NCERT chemistry files): "sWUXFWXUHV RI RUJDQLF" is
+// "structures of organic". Decoded word by word, only in a document full of such words, and only where the
+// decoded word is a real one
+const shift29 = (w) => w.replace(/[\x21-\x5d]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 29));
+const lettersOf = (w) => w.replace(/[^A-Za-z]/g, '').toLowerCase();
+function unshift(blocks, dict) {
+  if (!dict.size) return;
+  let won = 0, tried = 0;
+  for (const b of blocks) {
+    for (const w of b.text.match(/\S{3,}/g) || []) {
+      if (dict.has(lettersOf(w))) continue;
+      if (++tried > 5000) break;
+      if (dict.has(lettersOf(shift29(w)))) won++;
+    }
+  }
+  if (won < 20) return;
+  const fix = (w) => {
+    if (dict.has(lettersOf(w)) || /^[\d.,:;()%+\-–=×/]+$/.test(w)) return w;
+    for (const [a, z] of [[0, w.length], [0, w.length - 1], [1, w.length], [1, w.length - 1]]) { // real punctuation may sit at either end
+      if (z - a < 2) continue;
+      const d = shift29(w.slice(a, z));
+      if (dict.has(lettersOf(d))) return w.slice(0, a) + d + w.slice(z);
+    }
+    return w;
+  };
+  for (const b of blocks) b.text = b.text.replace(/\S+/g, fix);
+}
 
 // real words made of other words: never split
 const WHOLE = new Set(('throughout nevertheless nonetheless therefore furthermore whatsoever notwithstanding hereafter thereafter whereupon inasmuch ' +
@@ -66,7 +103,7 @@ function splitGlued(low, known, loose) {
   for (let i = 1; i <= n; i++) for (let j = Math.max(0, i - 24); j < i; j++) {
     if (!best[j]) continue;
     const w = low.slice(j, i), k = (w.length >= 2 || w === 'a') && known(w);
-    if (!k && !(loose && w.length >= 4)) continue;
+    if (!k && !(loose && w.length >= 3)) continue;
     const cost = best[j].cost + (k ? 1 : 2 + w.length * 0.3);
     if (!best[i] || cost < best[i].cost) best[i] = { cost, parts: best[j].parts.concat(w), unknown: best[j].unknown + (k ? 0 : w.length) };
   }
@@ -81,13 +118,16 @@ function mend(t, vocab, dict) {
   t = t.replace(/([a-z]{2,}[.:;,?])(?=[A-Z][a-z])/g, '$1 '); // "clothing.Aristotle"
   t = t.replace(/([a-z]{2,}[,;])(?=[a-z]{2,})/g, '$1 ').replace(/([a-z]{2,}\.)(?=[A-Z]\s)/g, '$1 '); // "physics,we", "scalar.A scalar"
   t = t.replace(/(?<=[a-z]{3})(?=[A-Z][a-z]{2})/g, ' '); // "PlantaeMonera"
+  t = t.replace(/(?<=[a-z]{2})(?=[A-Z]{2,}\b)/g, ' ').replace(/(?<=\b[A-Z]{3,})(?=[a-z]{3,}\b)/g, ' ').replace(/(?<=\b[A-Z]{2,})(?=[A-Z][a-z]{2,})/g, ' '); // "theIUPAC", "IUPACname", "OHMethyl"
+  t = t.replace(/(?<=[a-z]{2})(?=[A-Z][a-z]?[A-Z])/g, ' ').replace(/(?<=\b[A-Z][a-z]?)(?=[A-Z][a-z]{3,})/g, ' ').replace(/(?<=[a-z])(?=[A-Z]{2,}[a-z]{6,})|(?<=\b[A-Z]{2,})(?=[a-z]{6,})/g, ' '); // "ofAgNO", "BrBeing", "TheSIunit"
   t = t.replace(/(^|[\s(“‘])([A-Z]) ([a-z]{2,})\b/g, (m, a, c, w) => (!known(w) && known((c + w).toLowerCase()) ? a + c + w : m)); // a drop capital: "K ingdom"
   // glued words: "KINGDOMPLANTAE", "Inphysics,wecanclassifyquantities", "directionorintheoppositedirection". A run
   // squeezed against punctuation ("Thus,thetwomethods") is surely glued; elsewhere only a split into 3+ words
   // with common words among them counts — so "offspring" or "photosynthesis" stay whole
   t = t.replace(/[A-Za-z]{8,}/g, (w, at, all) => {
     const low = w.toLowerCase(), caps = w === w.toUpperCase(), capd = !caps && w[0] !== low[0] && w.slice(1) === low.slice(1);
-    if ((vocab.get(low) || 0) > 1 || dict.has(low) || WHOLE.has(low) || STOP.has(low) || (!caps && !capd && w !== low)) return w;
+    // a run seen twice is a word — unless it is very long: a glued line can repeat ("directlyattachedtocarbonatom")
+    if ((low.length < 16 && (vocab.get(low) || 0) > 1) || dict.has(low) || WHOLE.has(low) || STOP.has(low) || (!caps && !capd && w !== low)) return w;
     const before = all.slice(Math.max(0, at - 2), at), after = all.slice(at + w.length, at + w.length + 2);
     const squeezed = /[,.;:|)\]]$/.test(before) || /^[,.;:|(][A-Za-z(]/.test(after);
     const long = low.length >= 16;
@@ -109,10 +149,18 @@ function headingsIn(t, toc, chNo, state) {
   const found = [];
   const re = /(^|[\s.;:)])(\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?\s?(?=[A-Z])/g;
   let m;
-  while (!state.exercises && (m = re.exec(t))) {
+  while ((m = re.exec(t))) {
+    const ahead = state.chapter && +m[2] > state.chapter && +m[2] <= state.chapter + 3 && +m[3] <= 2; // a later chapter starts (one whose first headings were unreadable may be skipped)
+    if (state.exercises && !ahead) continue;
     const at = m.index + m[1].length, num = m[0].slice(m[1].length).trim();
     if (/(fig(ure)?s?\.?|table|eq(uation)?s?\.?|example|section|chapter|exercise|problem|unit|\()\s*$/i.test(t.slice(Math.max(0, at - 12), at))) continue;
     if (chNo && +m[2] !== chNo) continue;
+    const parts = [+m[2], +m[3], m[4] ? +m[4] : 0];
+    // the next chapter of a whole book: its "N+1.1" starts afresh (and ends the exercises of chapter N)
+    if (!chNo && ahead) { state.exercises = false; state.last = null; state.count = 0; }
+    if (!chNo && state.chapter && (parts[0] < state.chapter || parts[0] > state.chapter + 3)) continue;
+    // numbering that goes back (… 2.6.5, then 2.4) is the exercises: questions, not sections
+    if (state.last && state.count >= 3 && (parts[0] < state.last[0] || (parts[0] === state.last[0] && (parts[1] < state.last[1] || (parts[1] === state.last[1] && parts[2] < state.last[2]))))) { state.exercises = true; break; }
     const rest = t.slice(re.lastIndex);
     let title = '', len = 0;
     const entry = toc.find((e) => e.num === num);
@@ -125,7 +173,8 @@ function headingsIn(t, toc, chNo, state) {
     if (!title) {
       const toks = rest.slice(0, 200).split(' '), words = [];
       if (/^[A-Z][A-Z]/.test(toks[0])) { // CAPITALS
-        for (const w of toks) { if (/^[A-Z0-9][A-Z0-9,'’&():\-–]*$/.test(w) || /^[–\-&]$/.test(w)) words.push(w); else break; }
+        // (small capitals may come out as "GEnEsis of P EriodiC": a word with 2+ capitals counts as capitals)
+        for (const w of toks) { if (/^[A-Z0-9][A-Z0-9,'’&():?\-–]*$/.test(w) || /^[–\-&?]$/.test(w) || (/^[A-Z]/.test(w) && (w.match(/[A-Z]/g) || []).length >= 2) || /^(OF|AND|IN|THE|A|TO|FOR|ON|WITH)$/.test(w)) words.push(w); else break; }
         if (words.length && /^[A-Z]$/.test(words[words.length - 1])) words.pop(); // the first letter of the next sentence
         title = capsTitle(words.join(' '));
       } else if (/^[A-Z][a-z]/.test(toks[0])) { // Title Case, up to the word that starts the sentence
@@ -140,16 +189,26 @@ function headingsIn(t, toc, chNo, state) {
         title = words.join(' ');
       }
       len = words.join(' ').length;
-      if (!/[A-Za-z]{3}/.test(title) || NOT_HEADING.test(title.split(' ')[0]) || title.length > 90) continue;
+      const capsHead = /^[A-Z][A-Z]/.test(toks[0]); // a heading in CAPITALS may be a question ("WHY DO WE NEED TO CLASSIFY ELEMENTS ?")
+      if (!/[A-Za-z]{3}/.test(title) || (!capsHead && NOT_HEADING.test(title.split(' ')[0])) || title.length > 90) continue;
     }
-    found.push({ start: at, end: re.lastIndex + len, title: `${num} ${title.replace(/[\s,:;–\-]+$/, '')}` });
+    found.push({ start: at, end: re.lastIndex + len, num, title: `${num} ${title.replace(/[\s,:;–\-]+$/, '')}` });
+    state.last = parts;
+    state.chapter = parts[0];
+    state.count++;
     re.lastIndex += len;
+  }
+  // a heading followed straight away by its sibling is a contents line, not a section (a child may follow: "2.1" → "2.1.1")
+  for (let i = found.length - 2; i >= 0; i--) {
+    const a = found[i], b = found[i + 1];
+    if (b.start - a.end < 25 && !b.num.startsWith(a.num + '.')) found.splice(i, 1);
   }
   ENDINGS.lastIndex = 0;
   while ((m = ENDINGS.exec(t))) {
     if (found.some((f) => m.index >= f.start && m.index < f.end)) continue;
-    found.push({ start: m.index, end: m.index + m[0].length, title: capsTitle(m[1]) });
-    if (/EXERCISES|QUESTIONS/.test(m[1])) { state.exercises = true; break; } // numbers after this are questions, not sections
+    const word = m[1] || m[2];
+    found.push({ start: m.index, end: m.index + m[0].length, num: '', title: capsTitle(word) });
+    if (/EXERCISES|QUESTIONS/i.test(word)) state.exercises = true; // numbers after this are questions, not sections
   }
   return found.sort((a, b) => a.start - b.start);
 }
@@ -167,6 +226,11 @@ function paragraphs(text) {
 }
 
 function tidyBook(blocks, dict = new Set()) {
+  // 0 · fake bold, when the document has it
+  BOLD_SIGNS.lastIndex = 0;
+  const signs = blocks.reduce((a, b) => a + (b.text.match(BOLD_SIGNS) || []).length, 0);
+  if (signs >= 3) for (const b of blocks) b.text = unbold(b.text).replace(/\s+/g, ' ').trim();
+  unshift(blocks, dict);
   // 1 · running heads at the top of a page, kept when the same letters start 2+ pages (3+ in longer files)
   const firstOf = new Map();
   for (const b of blocks) if (!firstOf.has(b.page)) firstOf.set(b.page, b);
@@ -189,11 +253,42 @@ function tidyBook(blocks, dict = new Set()) {
   let headTitle = '', most = 0;
   for (const h of hits) if (count.get(h.letters) >= need) h.b.text = h.b.text.slice(h.len).trim();
   for (const [l, c] of count) if (c >= need && c > most && l.length > 3 && !/^(physics|chemistry|biology|mathematics|science|part|unit)\b/i.test(l)) { most = c; headTitle = capsTitle(l); }
-  // 2 · the contents on the first pages: 3+ entries in a row, numbered 1, 2, 3 … of one chapter
+  // running heads anywhere on a page, glued to its number: "…names. 197Alcohols, Phenols and Ethers Common …",
+  // "…pressure. MECHANICAL PROPERTIES OF FLUIDS181 182PHYSICS Example …"
+  const before = new Map(); // first word → texts that follow a page number glued to them
+  for (const b of blocks) for (const m of b.text.matchAll(/(?<![\w.,])(\d{1,3})(?=[A-Z])/g)) {
+    const tail = b.text.slice(m.index + m[1].length, m.index + m[1].length + 70), w = tail.split(/[\s,]/)[0];
+    if (!before.has(w)) before.set(w, []);
+    before.get(w).push(tail);
+  }
+  const strip = [];
+  for (const [, tails] of before) {
+    if (tails.length < need) continue;
+    let lcp = tails[0];
+    for (const t of tails) { let i = 0; while (i < lcp.length && i < t.length && lcp[i] === t[i]) i++; lcp = lcp.slice(0, i); }
+    lcp = lcp.slice(0, lcp.lastIndexOf(' ') > 0 && !/\s$/.test(lcp) ? lcp.lastIndexOf(' ') : lcp.length).trim();
+    if (lcp.length >= 6) strip.push(lcp);
+  }
+  const after = new Map(); // CAPITAL TITLE glued to a page number
+  for (const b of blocks) for (const m of b.text.matchAll(/\b([A-Z][A-Z ,’'&-]{3,60}?) ?(\d{1,3})(?![\d.])/g)) after.set(m[1].trim(), (after.get(m[1].trim()) || 0) + 1);
+  for (const [t, n] of after) if (n >= need && /[A-Z]{3}/.test(t) && (t.includes(' ') || t.length >= 7)) strip.push(t);
+  // a long title in capitals that comes back page after page is a running head wherever it sits
+  const caps = new Map();
+  for (const b of blocks) for (const m of b.text.matchAll(/\b[A-Z][A-Z’'&-]+(?: (?:[A-Z][A-Z’'&-]+|OF|AND|IN|THE|A)){2,}\b/g)) if (m[0].length >= 20) caps.set(m[0], (caps.get(m[0]) || 0) + 1);
+  for (const [t, n] of caps) if (n >= Math.max(need, 3) && !strip.includes(t)) strip.push(t);
+  for (const h of strip) {
+    const e = escRe(h);
+    const re = new RegExp(`(?<![\\w.,])\\d{1,3}${e}(?=\\s|$)|\\b${e} ?\\d{1,3}(?![\\d.])${/[a-z]/.test(h) ? '' : `|\\b${e}\\b`}`, 'g');
+    for (const b of blocks) b.text = b.text.replace(re, ' ').replace(/\s+/g, ' ').trim();
+    if (!headTitle && h.length > 6 && !/^(physics|chemistry|biology|mathematics|science|part|unit)\b/i.test(h)) headTitle = /[a-z]/.test(h) ? h.replace(/[,;:]$/, '') : capsTitle(h);
+  }
+  // 2 · the contents on a chapter's first pages: 3+ entries in a row, numbered 1, 2, 3 … of one chapter
   const toc = [], first = blocks.length ? blocks[0].page : 1;
+  const opens = new Set([first, first + 1, first + 2]); // a chapter starts at the file's start (after a unit opener, perhaps) and at each chapter heading
+  for (const b of blocks) if (b.kind === 'h1' && !/^\d/.test(b.text)) { opens.add(b.page); opens.add(b.page + 1); opens.add(b.page + 2); }
   for (const b of blocks) {
-    if (b.kind !== 'p' || b.page > first + 1) continue;
-    const re = /\b(\d{1,2})\.(\d{1,2})\s?([A-Z][A-Za-z0-9 ,'’&()\-–—:/]{2,80}?)(?=\s*\d{1,2}\.\d{1,2}\s?[A-Z]|\s*(?:Summary|Points to|Exercises|Additional|Appendix)\b|\s*$)/g;
+    if (b.kind !== 'p' || !opens.has(b.page)) continue;
+    const re = /\b(\d{1,2})\.(\d{1,2})\s?([A-Z][A-Za-z0-9 ,'’&()\-–—:/?.]{2,80}?)(?=\s*\d{1,2}\.\d{1,2}\s?[A-Z]|\s*(?:Summary|Points to|Exercises|Additional|Appendix)\b|\s*$)/g;
     const ents = []; let m;
     while ((m = re.exec(b.text))) ents.push({ ch: +m[1], n: +m[2], title: m[3].trim(), start: m.index, end: m.index + m[0].length });
     const runs = []; let run = [];
@@ -204,7 +299,7 @@ function tidyBook(blocks, dict = new Set()) {
     }
     if (run.length >= 3) runs.push(run);
     for (const r of runs.reverse()) {
-      toc.unshift(...r.map((e) => ({ num: `${e.ch}.${e.n}`, title: e.title })));
+      toc.unshift(...r.map((e) => ({ num: `${e.ch}.${e.n}`, title: e.title.replace(/[\s.]+$/, ''), page: b.page })));
       const tail = b.text.slice(r[r.length - 1].end).match(/^\s*(?:(?:Summary|Points to [Pp]onder|Exercises|Additional [Ee]xercises|Appendix)\s*)*/);
       b.text = (b.text.slice(0, r[0].start) + ' ' + b.text.slice(r[r.length - 1].end + (tail ? tail[0].length : 0))).replace(/\s+/g, ' ').trim();
     }
@@ -213,10 +308,10 @@ function tidyBook(blocks, dict = new Set()) {
   const vocab = new Map();
   for (const b of blocks) for (const w of b.text.toLowerCase().match(/[a-z]+/g) || []) vocab.set(w, (vocab.get(w) || 0) + 1);
   for (const b of blocks) b.text = mend(b.text, vocab, dict);
+  if (headTitle) headTitle = mend(headTitle, vocab, dict);
   // the scanner's own headings: sections numbered "3.4 …" are not chapters (a chapter file whose section
   // headings are set large); a heading's small-capital second line ("3.4 Addition" + "and subtraction of …") joins it
-  const heads = blocks.filter((b) => b.kind !== 'p');
-  if (heads.length >= 3 && heads.filter((b) => /^\d{1,2}\.\d{1,2}/.test(b.text)).length >= heads.length * 0.5) for (const b of heads) b.kind = 'h2';
+  for (const b of blocks) if (b.kind === 'h1' && /^\d{1,2}\.\d{1,2}/.test(b.text)) b.kind = 'h2'; // "3.4 …" is never a chapter
   for (let i = 0; i + 1 < blocks.length; i++) {
     const h = blocks[i], nx = blocks[i + 1];
     if (h.kind !== 'p' && nx.kind === 'p' && nx.page === h.page && wordCount(nx.text) <= 12 && !/[.!?:]$/.test(nx.text) && (/^[a-z]/.test(nx.text) || nx.text === nx.text.toUpperCase())) {
@@ -225,19 +320,25 @@ function tidyBook(blocks, dict = new Set()) {
     }
   }
   for (const b of blocks) if (b.kind !== 'p' && !/[a-z]/.test(b.text)) b.text = capsTitle(b.text);
-  // 4 · headings, when the scanner found (almost) none
+  // 4 · headings the scanner could not see (it may have found some by their size, and none of these)
   const structured = blocks.filter((b) => b.kind !== 'p').length >= Math.max(2, firstOf.size / 6);
   let out = blocks;
-  if (!structured) {
-    const nums = {};
-    for (const e of toc) nums[e.num.split('.')[0]] = (nums[e.num.split('.')[0]] || 0) + 1;
-    const chNo = +(Object.entries(nums).sort((a, b) => b[1] - a[1])[0] || [0])[0] || 0;
-    const state = { exercises: false };
+  {
+    // chapter by chapter: each has its own contents, its own number and its own exercises
+    let state, segToc, chNo;
+    const chapterAt = (page) => {
+      state = { exercises: false, last: null, count: 0, chapter: 0 };
+      segToc = toc.filter((e) => e.page >= page && e.page <= page + 2);
+      const nums = {};
+      for (const e of segToc) nums[e.num.split('.')[0]] = (nums[e.num.split('.')[0]] || 0) + 1;
+      chNo = new Set(toc.map((e) => e.num.split('.')[0])).size > 1 ? 0 : +(Object.entries(nums).sort((a, b) => b[1] - a[1])[0] || [0])[0] || 0;
+    };
+    chapterAt(first);
     out = [];
     for (const b of blocks) {
-      if (b.kind !== 'p') { out.push(b); continue; }
+      if (b.kind !== 'p') { out.push(b); if (b.kind === 'h1') chapterAt(b.page); continue; }
       let at = 0;
-      for (const h of headingsIn(b.text, toc, chNo, state)) {
+      for (const h of headingsIn(b.text, segToc, chNo, state)) {
         const before = b.text.slice(at, h.start).trim();
         if (before) out.push({ kind: 'p', page: b.page, text: before });
         out.push({ kind: 'h2', page: b.page, text: h.title });
@@ -253,7 +354,13 @@ function tidyBook(blocks, dict = new Set()) {
     if (b.kind === 'p' && wordCount(b.text) > 130) for (const t of paragraphs(b.text)) final.push({ kind: 'p', page: b.page, text: t });
     else if (b.text) final.push(b);
   }
-  return { blocks: final, headTitle, toc, structured };
+  // one chapter? its numbered sections all carry one chapter number ("3.1", "3.2.1", "3.10" …)
+  const nos = final.filter((b) => b.kind !== 'p').map((b) => (b.text.match(/^(\d{1,2})\.\d{1,2}/) || [])[1]).filter(Boolean);
+  const tally = {};
+  for (const n of nos) tally[n] = (tally[n] || 0) + 1;
+  const topNo = Object.values(tally).sort((a, b) => b - a)[0] || 0;
+  const oneChapter = nos.length >= 3 && topNo >= nos.length * 0.8;
+  return { blocks: final, headTitle, toc, structured, oneChapter };
 }
 
 // NCERT files are named by class, subject, part and chapter: kebo102 = Class 11 Biology chapter 2,
@@ -267,8 +374,68 @@ function ncertChapter(fileName, lib, text) {
   const ch = lib.chapters.find((c) => c.pack === NCERT_PACK[m[1]] && c.no === no);
   if (!ch) return null;
   const low = text.toLowerCase();
-  return ch.key.filter((w) => low.includes(w)).length >= Math.ceil(ch.key.length * 0.6) ? ch : null;
+  return ch.key.filter((w) => low.includes(w)).length >= Math.ceil(ch.key.length / 2) ? ch : null;
 }
+// A whole book without bookmarks: textbooks number their sections by chapter (3.1, 3.2 … 4.1), so a new chapter
+// starts where that number goes up. Each chapter starts at its contents (or its first section) and takes its
+// title from the big type just before; when the chapters line up with an NCERT book, its titles are used.
+function chaptersByNumber(blocks, toc, lib) {
+  const heads = [];
+  for (const b of blocks) {
+    const m = b.kind !== 'p' && b.text.match(/^(\d{1,2})\.(\d{1,2})\b/);
+    if (m) heads.push({ b, n: +m[1] });
+  }
+  const groups = [];
+  for (const h of heads) {
+    const g = groups[groups.length - 1];
+    if (g && g.n === h.n) g.heads.push(h.b);
+    else if (!g || h.n > g.n) groups.push({ n: h.n, heads: [h.b] });
+  }
+  const real = groups.filter((g) => g.heads.length >= 2);
+  if (real.length < 2) return null;
+  const GENERIC = /^(introduction|objectives|summary|exercises|points to ponder|questions|answers|appendix|notes?|unit\s*\d*|chapter\s*\d*)$/i;
+  const chapters = real.map((g) => {
+    const tocPage = Math.min(...toc.filter((e) => +e.num.split('.')[0] === g.n).map((e) => e.page), Infinity);
+    const start = Math.min(tocPage, g.heads[0].page);
+    // the title: big type on the chapter's first page(s), before its first section
+    const at = blocks.indexOf(g.heads[0]);
+    let title = '';
+    for (let i = at - 1; i >= 0 && blocks[i].page >= start - 1; i--) {
+      const b = blocks[i];
+      if (b.kind === 'h1' && !/^\d/.test(b.text) && !GENERIC.test(b.text.trim()) && /[A-Za-z]{3}/.test(b.text) && b.text.length <= 90) { title = b.text; break; }
+    }
+    return { n: g.n, title, page: start, sections: g.heads.map((b) => ({ title: b.text, page: b.page })) };
+  });
+  // an NCERT book: chapter N here is chapter N there — by the titles found, or (when the titles are pictures) by
+  // chapter N's title words all being in the first pages of chapter N here
+  let pack = '';
+  if (lib) {
+    let best = 0;
+    const opening = chapters.map((c, i) => {
+      const end = i + 1 < chapters.length ? chapters[i + 1].page : c.page + 3;
+      return blocks.filter((b) => b.page >= c.page && b.page < Math.min(end, c.page + 3)).map((b) => b.text).join(' ').toLowerCase();
+    });
+    for (const pk of new Set(lib.chapters.map((c) => c.pack))) {
+      const list = lib.chapters.filter((c) => c.pack === pk);
+      let hits = 0;
+      chapters.forEach((c, i) => {
+        const ref = list.find((x) => x.no === c.n);
+        if (!ref) return;
+        const a = new Set(titleKey(c.title)), z = new Set(ref.key);
+        let inter = 0; for (const w of a) if (z.has(w)) inter++;
+        if ((c.title && inter / (a.size + z.size - inter || 1) >= 0.5) || (ref.key.length && ref.key.every((w) => opening[i].includes(w)))) hits++;
+      });
+      if (hits > best) { best = hits; pack = pk; }
+    }
+    if (best >= Math.max(2, chapters.length * 0.5)) {
+      const list = lib.chapters.filter((c) => c.pack === pack);
+      for (const c of chapters) { const ref = list.find((x) => x.no === c.n); if (ref) c.title = ref.title; }
+    } else pack = '';
+  }
+  for (const c of chapters) if (!c.title) c.title = `Chapter ${c.n}`;
+  return { outline: chapters.map((c) => ({ title: c.title, page: c.page, sections: c.sections })), pack };
+}
+
 // a file name, path or typesetting file is not a title ("ch-2.pmd", "E:\Textbook\…\Chapter 3.pmd", "kebo102")
 const fileLike = (t) => /[\\/]|\.(pmd|p65|indd|qxd|qxp|docx?|pdf|tex|rtf|odt)$|^[\w.-]+$/i.test(t) || /untitled|microsoft word|^document$/i.test(t);
 
@@ -338,7 +505,7 @@ async function fromPDF(job, buf) {
     if (read.blocks.reduce((a, b) => a + wordCount(b.text), 0) < 40) throw new UserError(range ? 'Those pages have no readable text. Choose other pages, or check that the PDF is not a scan.' : 'This PDF has no text to read — it looks like scanned photos of pages. HoloStudy needs a text-based PDF (NCERT PDFs are).');
     report('Finding the chapters', 0.64);
     const tidy = tidyBook(read.blocks.filter((b) => b.text), await wordList());
-    const blocks = tidy.blocks;
+    let blocks = tidy.blocks;
     let outline = await pdfOutlineChapters(pdf);
     if (outline && pageList) outline = clipOutline(outline, pageList, pageCount);
     if (outline) outline.forEach((c) => { c.title = cleanText(c.title); (c.sections || []).forEach((s) => (s.title = cleanText(s.title))); });
@@ -351,8 +518,27 @@ async function fromPDF(job, buf) {
     let chapterTitle = '';
     // (the scanner would make every section a chapter when it sees one chapter heading and many section headings)
     const h1s = blocks.filter((b) => b.kind === 'h1');
-    if (!outline && h1s.length <= 1 && (ncert || tidy.headTitle || h1s.length === 1 || words < 15000)) {
-      chapterTitle = ncert ? ncert.title : (h1s[0] && h1s[0].text) || tidy.headTitle || capsTitle(job.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
+    const GENERIC_HEAD = /^(introduction|objectives|summary|exercises|points to ponder|questions|answers|appendix|glossary|references|notes?)$/i;
+    const CODE = /^[A-Za-z]{2,6}\s?\d{2,4}$/; // "lhsk101": a typesetting code
+    // a whole book without bookmarks: chapters where its section numbers change (see chaptersByNumber)
+    const book = !outline && !ncert && !tidy.oneChapter ? chaptersByNumber(blocks, tidy.toc, lib) : null;
+    if (book) { outline = book.outline; if (book.pack) job.pack = book.pack; }
+    if (ncert || (!outline && (h1s.length <= 1 || tidy.oneChapter) && (tidy.headTitle || h1s.length > 0 || words < 15000))) {
+      const own = h1s.find((b) => !GENERIC_HEAD.test(b.text) && !CODE.test(b.text) && !/^(chapter|unit)\b/i.test(b.text));
+      chapterTitle = ncert ? ncert.title : (own && own.text) || tidy.headTitle || capsTitle(job.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' '));
+      const key = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const seen = new Set();
+      let exercises = false;
+      blocks = blocks.filter((b) => {
+        if (b.kind === 'p') return true;
+        const t = b.text.trim(), k = key(t);
+        b.kind = 'h2';
+        if (k === key(chapterTitle) || CODE.test(t) || /^(chapter|unit)\s+\S+$/i.test(t) || !/[A-Za-z]{3}/.test(t) || seen.has(k)) return false;
+        if (exercises && /^\d/.test(t)) { b.kind = 'p'; return true; } // a question after "Exercises"
+        if (/^(exercises|questions)\b/i.test(t)) exercises = true;
+        seen.add(k);
+        return true;
+      });
       outline = [{ title: chapterTitle, page: blocks.length ? blocks[0].page : 1, sections: blocks.filter((b) => b.kind === 'h2').map((b) => ({ title: b.text, page: b.page })) }];
     }
     const meta = await pdf.getMetadata().catch(() => null);
@@ -377,7 +563,8 @@ async function fromPDF(job, buf) {
         return { title: h ? h.text : fixTitle(s.title), page: s.page };
       });
     }
-    return await finishDoc(job, { title, kind: 'pdf', pages: pageCount, scanned: pageList ? pageList.length : pageCount, range }, built);
+    if (job.pack && !ncert && fileLike(title)) title = (lib.chapters.find((c) => c.pack === job.pack) ? `NCERT ${job.pack.replace(/\d+$/, (n) => ' Class ' + n).replace(/^./, (c) => c.toUpperCase())}` : title);
+    return await finishDoc(job, { title, kind: 'pdf', pages: pageCount, scanned: pageList ? pageList.length : pageCount, range, ncert, pack: job.pack || '' }, built);
   } finally { pdf.destroy(); }
 }
 
@@ -400,7 +587,7 @@ async function finishDoc(job, meta, built) {
   const chapters = built.chapters;
   const fullText = chapters.map((c) => c.blocks.map((b) => b.text).join('\n')).join('\n');
   report('Working out the subject', 0.7);
-  const subject = detectSubject(fullText);
+  const subject = meta.ncert || meta.pack ? (meta.ncert ? meta.ncert.pack : meta.pack).replace(/\d+$/, '') : detectSubject(fullText);
   report('Finding key terms and formulas', 0.76);
   await nextFrame();
   const docStats = Analytics.docStats(chapters);
@@ -464,10 +651,11 @@ async function holoLibrary() {
 }
 function titleKey(t) { return hWords(String(t).replace(/^\s*(chapter|unit)\s+\S+\s*[:.\-–—]?\s*/i, '')).filter((w) => w.length >= 3 && !H_STOP.has(w)); }
 const countIn = (text, phrase) => (text.match(new RegExp('\\b' + escRe(phrase).replace(/ /g, '[\\s-]+') + '(?:s|es)?\\b', 'g')) || []).length;
-function matchHolograms(lib, c, subject) {
+function matchHolograms(lib, c, subject, ncert) {
   const sub = H_SUB[subject] || '';
   const out = [], have = new Set();
   const add = (f, why) => { if (!have.has(f.id) && out.length < 8) { have.add(f.id); out.push({ hash: f.id, title: f.title, fig: f.fig || '', why }); } };
+  if (ncert) for (const h of ncert.holos) { const f = lib.byId.get(h.hash); if (f) add(f, ['NCERT chapter']); } // the file is that NCERT chapter
   // 1 · an NCERT chapter of the same name
   const key = titleKey(c.title);
   if (key.length) {
@@ -629,7 +817,7 @@ async function run(h, getFile) {
     job.id = 'u' + hashStr(`v${SCAN}|${job.name}|${job.size}`);
     call(h, 'onStarted', job.name, job.size, job.id);
     if (!kind) throw new UserError(`“${job.name}” is not a PDF. Choose a PDF (or a .txt / .md text file).`);
-    if (job.size > MAX_MB * 1048576) throw new UserError(`This file is ${(job.size / 1048576).toFixed(0)} MB — too big to scan on this device. Use a PDF under ${MAX_MB} MB (one chapter or part of the book).`);
+    if (job.size > maxMB() * 1048576) throw new UserError(`This file is ${(job.size / 1048576).toFixed(0)} MB — too big to scan on this device. Use a PDF under ${maxMB()} MB (one chapter or part of the book).`);
     if (job.size === 0) throw new UserError('This file is empty.');
     job.report('Reading the file', 0.01);
     const doc = kind === 'pdf' ? await fromPDF(job, await file.arrayBuffer()) : await fromText(job, await file.text(), kind);
@@ -638,7 +826,7 @@ async function run(h, getFile) {
     try { lib = await holoLibrary(); } catch (e) { console.warn('hologram library not available', e); } // offline: a book without holograms
     job.report.check();
     const bookTerms = doc.chapters.flatMap((c) => c.terms.slice(0, 12).map((t) => t.t));
-    doc.chapters.forEach((c) => { c.holos = lib ? matchHolograms(lib, c, doc.subject) : []; });
+    doc.chapters.forEach((c) => { c.holos = lib ? matchHolograms(lib, c, doc.subject, doc.chapters.length === 1 ? doc.ncert : null) : []; });
     job.report('Writing practice questions', 0.98);
     await nextFrame();
     const forms = termForms(doc);
@@ -698,7 +886,7 @@ const HoloImport = {
   onDrop(h) { dropHandler = h; },
   lastPack: '',
   _test: {
-    matchHolograms, makeMCQs, termForms, holoLibrary, cleanText, fitFonts, tidyBook,
+    matchHolograms, makeMCQs, termForms, holoLibrary, cleanText, fitFonts, tidyBook, ncertChapter, unbold, BOLD_SIGNS, shift29,
     // what the scanner reads from a PDF, before the textbook clean-up (for looking into odd files)
     async read(url, pages) {
       await ensurePdf();

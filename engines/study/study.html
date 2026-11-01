@@ -1258,7 +1258,7 @@ const Ingest = {
     report('Opening PDF', 0.02);
     const buf = await file.arrayBuffer();
     let pdf;
-    try { pdf = await pdfjsLib.getDocument({ data: buf }).promise; }
+    try { pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise; } // isEvalSupported: false — fonts are never compiled to code (pdf.js 3.x advisory CVE-2024-4367)
     catch (e) {
       if (e && e.name === 'PasswordException') throw new Error('This PDF is password-protected. Remove the password (or print it to a new PDF) and upload it again.');
       throw new Error('This file could not be opened as a PDF. It may be damaged or not really a PDF.');
@@ -2351,7 +2351,7 @@ const UI = {
     applySubjectTheme(doc.subject);
     if (doc._pdf) HS.pdf = doc._pdf; // just scanned: reuse the parsed PDF instead of parsing it a second time
     else if (doc.hasPdf && window.pdfjsLib) {
-      try { const f = await DB.get('files', doc.id); if (f && f.blob) { pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER; HS.pdf = await pdfjsLib.getDocument({ data: await f.blob.arrayBuffer() }).promise; } } catch (e) { console.warn('pdf reopen failed', e); }
+      try { const f = await DB.get('files', doc.id); if (f && f.blob) { pdfjsLib.GlobalWorkerOptions.workerSrc = PDF_WORKER; HS.pdf = await pdfjsLib.getDocument({ data: await f.blob.arrayBuffer(), isEvalSupported: false }).promise; } } catch (e) { console.warn('pdf reopen failed', e); }
     }
     this.showApp();
     this.mountHolo();

@@ -44,3 +44,7 @@ godot/content/
 build/
 tools/.godot-content-profile/
 tools/fonts-src/
+
+# content checks: TypeSafe answer cache and headless-Edge profiles of the converter tools
+tools/.typesafe-cache/
+tools/.edge-*/

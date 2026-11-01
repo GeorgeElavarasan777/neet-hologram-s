@@ -37,7 +37,9 @@ func _ready() -> void:
 	await App.boot()
 	loading.queue_free()
 	push(HomeScreen.new())
-	if App.autotest:
+	if App.capacity:
+		add_child(CapacityTest.new())
+	elif App.autotest:
 		var t := AutoTest.new()
 		add_child(t)
 

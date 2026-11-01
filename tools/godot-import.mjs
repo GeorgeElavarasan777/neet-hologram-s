@@ -6,7 +6,7 @@
 //                         parsed exactly like the NCERT books — plus the Symbol-font map of tools/godot-content.mjs,
 //                         the characters the app's fonts can draw (godot/assets/fonts/coverage.txt) and
 //                         godot/web/import/driver.js (file picker, pdf.js, progress, holograms, MCQs, the API)
-//   words.txt             the words of the NCERT books (godot/content/packs, 3+ uses each): tells glued words in a
+//   words.txt             the words of the NCERT books (godot/content/packs, 2+ uses each): tells glued words in a
 //                         PDF's text from real ones (fetched only when a PDF is added)
 //   pdf.min.js, pdf.worker.min.js   pdf.js 3.11 from vendor/ (loaded only when a PDF is added)
 //   node tools/godot-import.mjs [out]        (default build/godot-web; tools/godot-build.mjs runs it)
@@ -69,7 +69,7 @@ export function words() {
     const p = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
     for (const c of p.chapters || []) for (const b of c.blocks || []) for (const w of String(b.t).toLowerCase().match(/[a-z]{2,}/g) || []) count.set(w, (count.get(w) || 0) + 1);
   }
-  return [...count].filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).map(([w]) => w).join(' ');
+  return [...count].filter(([w, n]) => n >= 2 && w.length <= 24).sort((a, b) => b[1] - a[1]).map(([w]) => w).join(' ');
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || '').href) {

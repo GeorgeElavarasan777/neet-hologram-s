@@ -25,16 +25,21 @@ Practice (Tap & answer and the Space shooter). It all happens in the browser; th
   at build time by `tools/godot-import.mjs`) builds chapters, sections, voice notes, key points, key terms, the
   summary and the recall quiz — exactly as for the NCERT books.
 - **Textbook clean-up** (`web/import/driver.js`) for what printed textbooks leave in a PDF's text: running heads
-  and page numbers, the chapter contents on page 1, fake-bold repeats, glued words (checked against the words of
-  the NCERT books, `import/words.txt`), headings set in body-size capitals. NCERT file names (kebo102 = Class 11
-  Biology chapter 2) give the chapter its title.
+  and page numbers (wherever they sit), each chapter's contents list, fake bold (a phrase or each letter printed
+  several times), a font whose letters come out shifted, glued words (checked against the words of the NCERT
+  books, `import/words.txt`), headings set in body-size capitals or Title Case, exam questions after Exercises.
+  NCERT file names (kebo102 = Class 11 Biology chapter 2) give the chapter its title, subject and holograms.
+- **Chapters:** a chapter file is one chapter, its numbered headings its sections. A whole book uses its bookmarks;
+  without them it is divided where the section numbers change (3.x → 4.x), and an NCERT book gets its chapter
+  titles from the curriculum.
 - **Holograms:** a chapter named like an NCERT chapter gets that chapter's figures; otherwise the library's
   figures whose titles and labels the text keeps using (tuned on the NCERT books).
 - **MCQs:** fill-the-blank questions from the chapter's definitions, key points and sentences; the answer is a key
   term, wrong options are other key terms of the same shape; after answering, the book's own sentence and page.
 - **Progress** works as for the NCERT books (notes heard, page, quiz, Continue on Home). Adding the same file
   again scans it afresh and keeps the progress; Delete removes the book, its files and its progress.
-- Large PDFs ask which pages to scan (200 / 400 / 600 pages by device memory). Password-protected, damaged,
+- Large PDFs ask which pages to scan (200 / 400 / 600 pages by device memory); files up to 80 / 160 / 400 MB.
+  Password-protected, damaged,
   scanned (no text), non-English and too-short files get a message saying what to do. The sheet shows each step
   with a progress bar; Cancel or closing the sheet stops it and adds nothing.
 
@@ -73,6 +78,10 @@ node tools/godot-webtest.mjs                  # the walk-through in headless Edg
 node tools/test-import.mjs                    # the converter without a browser: each NCERT book's text gives the same
                                               # chapters, notes, terms, summary and quiz as its pack; MCQs well formed
 node tools/godot-pdfcheck.mjs <file or folder>  # what "Add a PDF" makes of your own PDFs
+node tools/godot-pdfsuite.mjs <folder>        # scores every PDF in a folder: one clean chapter per NCERT file (its title,
+                                              # sections, holograms, MCQs, nothing left over); whole books: their chapters
+node tools/godot-capacity.mjs <folder>        # fills the library with those PDFs (each under 3 names) through the import
+                                              # sheet, measuring time, storage and memory; reloads; checks; deletes all
 ```
 
 `godot-webtest.mjs --fixture` also saves the converted sample book to `tests/sample-book.json`, which the desktop

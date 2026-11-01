@@ -17,6 +17,7 @@ var practice_data := {}
 var data := {}
 var base_url := ""
 var autotest := false
+var capacity := false # ?capacity: tools/godot-capacity.mjs fills the library (scripts/capacity_test.gd)
 var _packs := {}
 var _loading := {}
 var _save_timer: Timer
@@ -30,6 +31,8 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		base_url = str(JavaScriptBridge.eval("new URL('.', document.baseURI).href", true))
 		autotest = int(JavaScriptBridge.eval("location.search.indexOf('autotest') >= 0 ? 1 : 0", true)) == 1
+		capacity = int(JavaScriptBridge.eval("location.search.indexOf('capacity') >= 0 ? 1 : 0", true)) == 1
+		autotest = autotest or capacity # (no browser history, simulated speech)
 	autotest = autotest or OS.get_cmdline_user_args().has("--autotest")
 	if autotest:
 		print("HoloStudy autotest on")
