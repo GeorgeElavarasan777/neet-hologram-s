@@ -133,6 +133,21 @@ Ten files of finished work are not committed:
     position (`"<i>"`, `"k<i>"` in `godot/scripts/app.gd`). After the corrected
     content ships, the ticks of the built-in chapters are cleared once. Chapter
     position, quiz scores and added books are kept.
+*   **Source text repaired, not rebuilt (2026-11-02, Phase 1):**
+    *   **Why:** a trial rebuild through the converter made the text worse. It
+        lost headings (Animal Kingdom kept 3 of 19) and split words
+        ("Fa sc io la").
+    *   **What `tools/ncert-repair.mjs` does instead:** it keeps every word of
+        the old text, checked letter by letter, and puts back 204 headings the
+        PDFs print but the text had lost (2.2.2 Dinoflagellates, 8.5 Eukaryotic
+        Cells and its 11 subsections, …).
+    *   **Pages:** it adds a page marker on 1,549 of 1,690 pages; before, there
+        was one per chapter and pages were estimated. It uses the printed page
+        numbering, which in 15 part-2 chapters runs on from part 1's appendices
+        (+6 to +23).
+    *   **Left:** 36 printed headings are still missing, mostly Chemistry 12
+        two-column titles. They are listed in
+        `data/content-review/repair.md`.
 *   **App updates:** after a release, a returning student gets it the next time
     the app is opened after being fully closed (Godot's offline cache). No
     forced update is added.
@@ -201,9 +216,8 @@ Ten files of finished work are not committed:
 ```text
 NCERT PDFs (Documents\cbse\…, 79 chapters)
   │
-  ├─► tools/ncert-rebuild.mjs (converter in headless Edge, frozen word list)
-  │     └─► engines/study/holostudy-demos.js  (rebuilt source text)
-  │           └─ one-time "nothing lost" diff vs the old file
+  ├─► tools/ncert-repair.mjs (pdftotext; words of the text never change)
+  │     └─► engines/study/holostudy-demos.js  (headings put back, a page marker per page)
   │
   └─► pdftotext (independent of the converter) ──┐
                                                   ▼
@@ -530,7 +544,13 @@ must pass before the next phase starts.
     *   Codes come from `data/curriculum.js` plus the `NCERT_PACK` and
         `NCERT_PART1` rule.
 
-#### 1.5 `tools/ncert-rebuild.mjs` (Create)
+#### 1.5 `tools/ncert-repair.mjs` (Create; done, replaces the rebuild described below)
+*   **Done:** `node tools/ncert-repair.mjs [--only <pack>] [--rehash]` writes
+    `holostudy-demos.new.js` and `data/content-review/repair.md`; `--accept`
+    applies it. It puts back printed headings and adds page markers. It refuses
+    any chapter whose letters would change.
+*   **Was planned (rejected after the trial):** convert each PDF and write new
+    text, as below.
 *   **Type / Scope**: Node script.
 *   **Proposed Changes**:
     *   `node tools/ncert-rebuild.mjs [--only <pack>] [--accept]`.

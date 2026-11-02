@@ -6,7 +6,7 @@
 //                         parsed exactly like the NCERT books — plus the Symbol-font map of tools/godot-content.mjs,
 //                         the characters the app's fonts can draw (godot/assets/fonts/coverage.txt) and
 //                         godot/web/import/driver.js (file picker, pdf.js, progress, holograms, MCQs, the API)
-//   words.txt             the words of the NCERT books (godot/content/packs, 2+ uses each): tells glued words in a
+//   words.txt             the words of the NCERT books (data/words-frozen.txt; else godot/content/packs, 2+ uses each): tells glued words in a
 //                         PDF's text from real ones (fetched only when a PDF is added)
 //   pdf.min.js, pdf.worker.min.js   pdf.js 3.11 from vendor/ (loaded only when a PDF is added)
 //   node tools/godot-import.mjs [out]        (default build/godot-web; tools/godot-build.mjs runs it)
@@ -63,6 +63,10 @@ ${driver}
 }
 
 export function words() {
+  // frozen once (data/words-frozen.txt) so rebuilding the NCERT text from its PDFs (tools/ncert-rebuild.mjs)
+  // does not feed on its own output; without that file the list is counted from the packs as before
+  const frozen = path.join(ROOT, 'data', 'words-frozen.txt');
+  if (fs.existsSync(frozen)) return fs.readFileSync(frozen, 'utf8').trim();
   const dir = path.join(ROOT, 'godot', 'content', 'packs'), count = new Map();
   if (!fs.existsSync(dir)) return '';
   for (const f of fs.readdirSync(dir).filter((x) => x.endsWith('.json'))) {

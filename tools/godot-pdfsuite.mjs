@@ -7,12 +7,10 @@
 // what printed textbooks leave behind: glued words, running heads, the contents list, fake-bold repeats.
 // A whole book (several chapters in one PDF) named after a pack (biology11*.pdf …) is checked for chapters.
 // Exit code = files that are not clean.
-import http from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { openConverter } from './lib/edge-convert.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const WEB = path.join(ROOT, 'build', 'godot-web');
@@ -23,7 +21,6 @@ const files = fs.readdirSync(DIR).filter((f) => /\.pdf$/i.test(f)).sort();
 if (!fs.existsSync(path.join(WEB, 'import', 'holostudy-import.js'))) { console.error('run node tools/godot-build.mjs first'); process.exit(1); }
 const cur = JSON.parse(fs.readFileSync(path.join(ROOT, 'godot', 'content', 'curriculum.json'), 'utf8'));
 const dict = new Set(fs.readFileSync(path.join(WEB, 'import', 'words.txt'), 'utf8').split(/\s+/));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // NCERT file code → curriculum chapter (same rule as the converter)
 const PACK = { keph: 'physics11', leph: 'physics12', kech: 'chemistry11', lech: 'chemistry12', kebo: 'biology11', lebo: 'biology12' };
@@ -38,38 +35,17 @@ function expected(name) {
 }
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z]+/g, ' ').trim();
 
-const server = http.createServer((req, res) => {
-  const u = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  if (u === '/suite.html') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<!doctype html><meta charset="utf-8"><script src="import/holostudy-import.js"></script>'); }
-  const f = u.startsWith('/pdf/') ? path.join(DIR, path.basename(u)) : path.join(WEB, u);
-  if ((!u.startsWith('/pdf/') && !f.startsWith(WEB)) || !fs.existsSync(f)) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { 'Content-Type': f.endsWith('.js') ? 'text/javascript' : f.endsWith('.json') ? 'application/json' : 'application/octet-stream' });
-  fs.createReadStream(f).pipe(res);
-});
-await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const BASE = `http://127.0.0.1:${server.address().port}`;
-const BROWSER = process.env.BROWSER || ['C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Microsoft/Edge/Application/msedge.exe', 'C:/Program Files/Google/Chrome/Application/chrome.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].find((p) => fs.existsSync(p));
-const PORT = 9300 + Math.floor(Math.random() * 300), PROFILE = path.join(os.tmpdir(), 'holostudy-pdfsuite-' + Date.now());
-const browser = spawn(BROWSER, ['--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${PROFILE}`, '--no-first-run', '--disable-extensions', '--js-flags=--max-old-space-size=2048', 'about:blank'], { stdio: 'ignore' });
-let ws, seq = 0, unclean = 0;
-const W = new Map(), rows = [];
+const conv = await openConverter({ webRoot: WEB, name: 'pdfsuite' });
+let unclean = 0;
+const rows = [];
 try {
-  for (let i = 0; i < 60 && !ws; i++) {
-    try { const t = (await (await fetch(`http://127.0.0.1:${PORT}/json`)).json()).find((x) => x.type === 'page'); if (t) { ws = new WebSocket(t.webSocketDebuggerUrl); await new Promise((r) => (ws.onopen = r)); } } catch { /* starting */ }
-    if (!ws) await sleep(300);
-  }
-  ws.onmessage = (m) => { const d = JSON.parse(m.data); if (W.has(d.id)) { W.get(d.id)(d); W.delete(d.id); } };
-  const cdp = (method, params = {}) => new Promise((r) => { const id = ++seq; W.set(id, r); ws.send(JSON.stringify({ id, method, params })); });
-  const ev = async (e) => { const r = await cdp('Runtime.evaluate', { expression: e, awaitPromise: true, returnByValue: true }); if (r.result.exceptionDetails) throw new Error(r.result.exceptionDetails.text); return r.result.result.value; };
-  await cdp('Page.navigate', { url: BASE + '/suite.html' });
-  for (let i = 0; i < 50 && !(await ev('!!window.HoloImport').catch(() => false)); i++) await sleep(100);
   console.log('file              s  pages ch  sections notes mcq holo   glued heads toc dup  title / problems');
   for (const f of files) {
     const t0 = Date.now();
-    const out = await ev(`new Promise((res) => { let last = 0, back = false; HoloImport.convertUrl('/pdf/${f}', ${JSON.stringify(f)}, { onAsk: (n, lim) => HoloImport.answer(1, lim), onProgress: (s, p) => { if (p < last) back = true; last = p; }, onDone: (j) => res({ json: j, back, last }), onError: (m) => res({ error: m }), onCancelled: () => res({ error: 'cancelled' }) }); })`);
+    const out = await conv.convert(path.join(DIR, f), f);
     const secs = (Date.now() - t0) / 1000, want = expected(f), problems = [];
     if (out.error) { rows.push({ file: f, error: out.error }); unclean++; console.log(`${f.padEnd(16)} could not be added: ${out.error}`); continue; }
-    const p = JSON.parse(out.json);
+    const p = out.pack;
     const notes = p.chapters.flatMap((c) => c.notes.map((n) => n.t));
     const text = notes.join(' ');
     const words = text.split(/\s+/).length || 1;
@@ -127,9 +103,6 @@ try {
   console.log(`\n${ok} of ${rows.length} clean · ${rows.reduce((a, r) => a + (r.pages || 0), 0)} pages · ${rows.reduce((a, r) => a + (r.notes || 0), 0)} voice notes · ${rows.reduce((a, r) => a + (r.mcq || 0), 0)} MCQs · ${rows.reduce((a, r) => a + (r.secs || 0), 0).toFixed(0)} s`);
   if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(rows, null, 1));
 } finally {
-  browser.kill();
-  server.close();
-  await new Promise((r) => { browser.once('exit', r); setTimeout(r, 3000); });
-  try { fs.rmSync(PROFILE, { recursive: true, force: true }); } catch { /* still held */ }
+  await conv.close();
 }
 process.exit(unclean);
