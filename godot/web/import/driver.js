@@ -886,7 +886,7 @@ const HoloImport = {
   onDrop(h) { dropHandler = h; },
   lastPack: '',
   _test: {
-    matchHolograms, makeMCQs, termForms, holoLibrary, cleanText, fitFonts, tidyBook, ncertChapter, unbold, BOLD_SIGNS, shift29,
+    matchHolograms, makeMCQs, termForms, holoLibrary, cleanText, fitFonts, tidyBook, ncertChapter, unbold, BOLD_SIGNS, shift29, LEANS, LEAD,
     // what the scanner reads from a PDF, before the textbook clean-up (for looking into odd files)
     async read(url, pages) {
       await ensurePdf();

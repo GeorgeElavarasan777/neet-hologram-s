@@ -1206,7 +1206,7 @@ function buildChapters(blocks, outlineChapters, pageCount) {
     c.sections = [];
     if (c.outlineSections && c.outlineSections.length) c.outlineSections.forEach((s) => c.sections.push({ title: s.title, page: s.page }));
     else c.blocks.forEach((b) => { if (b.kind === 'h2' || b.kind === 'h1') c.sections.push({ title: b.text, page: b.page }); });
-    if (c.sections.length > 24) c.sections = c.sections.slice(0, 24);
+    if (c.sections.length > 60) c.sections = c.sections.slice(0, 60); // NCERT chapters print up to 41 (Chemistry 11, Equilibrium)
     delete c.outlineSections;
   });
   return { chapters, totalWords };
