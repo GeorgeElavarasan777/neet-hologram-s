@@ -371,7 +371,7 @@ func _run() -> void:
 	if ok:
 		var g = _top().game
 		g.manual = true
-		for i in 5:
+		for i in 40: # the drones slide in and wait while the question is read
 			g.step(0.016)
 		await _shot("shooter")
 		var s0: int = g.score
@@ -379,7 +379,38 @@ func _run() -> void:
 		for i in 10:
 			g.step(0.016)
 		_step("hitting the right ship scores", g.score > s0, "score %d" % g.score)
+		await _shot("shooter-hit")
 		_step("the game is saved after the hit", int(App.data.practice.get("shooter", {}).get("score", -1)) == g.score)
+		# the controls, with real input events: the ship follows the mouse; a finger steers by dragging (relative)
+		# without firing, and lifting it fires
+		var xf: Transform2D = App.main.get_viewport().get_final_transform()
+		var o: Vector2 = g.get_global_rect().position
+		var fy: float = g.size.y * 0.6
+		var mv := InputEventMouseMotion.new()
+		mv.position = xf * (o + Vector2(g.size.x * 0.25, fy))
+		mv.global_position = mv.position
+		App.main.get_viewport().push_input(mv)
+		await _frames(2)
+		_step("the ship follows the mouse", absf(g.target_x - g.size.x * 0.25) < 2.0, "target %.0f, mouse %.0f" % [g.target_x, g.size.x * 0.25])
+		var shots: int = g.bullets.size()
+		var x0: float = g.target_x
+		for k in 3: # finger down · drag 40 px right · lift
+			var e: InputEvent
+			if k == 1:
+				e = InputEventScreenDrag.new()
+				e.index = 0
+				e.position = xf * (o + Vector2(g.size.x * 0.5 + 40, fy))
+				e.relative = Vector2(40, 0)
+			else:
+				e = InputEventScreenTouch.new()
+				e.index = 0
+				e.pressed = k == 0
+				e.position = xf * (o + Vector2(g.size.x * 0.5 + (40 if k == 2 else 0), fy))
+			App.main.get_viewport().push_input(e)
+			await _frames(2)
+			if k == 1:
+				_step("a finger drag steers the ship without firing", absf(g.target_x - (x0 + 54.0)) < 2.0 and g.bullets.size() == shots, "moved %.0f, shots %d" % [g.target_x - x0, g.bullets.size() - shots])
+		_step("lifting the finger fires", g.bullets.size() == shots + 1, "shots %d" % (g.bullets.size() - shots))
 		await _back()
 		_step("Back pauses the game", g.paused and _find("PauseBox").visible)
 		await _shot("shooter-paused")
